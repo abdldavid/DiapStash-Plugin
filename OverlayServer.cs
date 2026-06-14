@@ -328,7 +328,7 @@ namespace DiapStash_Plugin
                                     const bgDashArr = `${arcLen} ${circ}`;
                                     const fgDashOff = circ - (arcLen * pct);
                                     
-                                    let svgHTML = `<svg width='${w}' height='${h}' viewBox='0 0 ${w} ${h}'>`;
+                                    let svgHTML = `<svg xmlns='http://www.w3.org/2000/svg' width='${w}' height='${h}' viewBox='0 0 ${w} ${h}'>`;
                                     svgHTML += `<circle cx='${cx}' cy='${cy}' r='${r}' fill='none' stroke='${formatCssColor(bgCol)}' stroke-width='${t}' stroke-linecap='${lineCap}' stroke-dasharray='${bgDashArr}' stroke-dashoffset='0' transform='rotate(${rotAng} ${cx} ${cy})' />`;
                                     svgHTML += `<circle cx='${cx}' cy='${cy}' r='${r}' fill='none' stroke='${formatCssColor(fillCol)}' stroke-width='${t}' stroke-linecap='${lineCap}' stroke-dasharray='${circ} ${circ}' stroke-dashoffset='${fgDashOff}' transform='rotate(${rotAng} ${cx} ${cy})' style='transition: stroke-dashoffset 1s ease;' />`;
                                     svgHTML += `</svg>`;
