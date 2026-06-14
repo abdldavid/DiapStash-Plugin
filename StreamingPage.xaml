@@ -442,6 +442,67 @@
                             <ComboBoxItem Content="Fill"/>
                         </ComboBox>
                     </StackPanel>
+
+                    <StackPanel x:Name="Properties_Ring" Spacing="15" Visibility="Collapsed">
+                        <TextBlock Text="Data Source" FontWeight="SemiBold"/>
+                        <ComboBox x:Name="RingDataSourceCombo" SelectionChanged="ElementProp_Changed" HorizontalAlignment="Stretch">
+                            <ComboBoxItem Content="Wetness"/>
+                            <ComboBoxItem Content="Messiness"/>
+                        </ComboBox>
+                        
+                        <TextBlock Text="Stroke Thickness" Margin="0,10,0,0"/>
+                        <Grid ColumnDefinitions="*, 60">
+                            <Slider Grid.Column="0" x:Name="RingThicknessSlider" Minimum="1" Maximum="100" Value="10" ValueChanged="ElementProp_Changed" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                            <TextBox Grid.Column="1" Text="{Binding ElementName=RingThicknessSlider, Path=Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Center" TextAlignment="Center"/>
+                        </Grid>
+                        
+                        <ToggleSwitch x:Name="RingFullCircleToggle" Header="Full Circle" IsOn="True" Toggled="ElementProp_Changed"/>
+                        
+                        <StackPanel x:Name="RingArcProperties" Spacing="10">
+                            <TextBlock Text="Arc Angle (Degrees)"/>
+                            <Grid ColumnDefinitions="*, 60">
+                                <Slider Grid.Column="0" x:Name="RingArcAngleSlider" Minimum="10" Maximum="360" Value="360" ValueChanged="ElementProp_Changed" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                <TextBox Grid.Column="1" Text="{Binding ElementName=RingArcAngleSlider, Path=Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Center" TextAlignment="Center"/>
+                            </Grid>
+                            
+                            <TextBlock Text="Rotation Offset"/>
+                            <Grid ColumnDefinitions="*, 60">
+                                <Slider Grid.Column="0" x:Name="RingRotationSlider" Minimum="0" Maximum="360" Value="0" ValueChanged="ElementProp_Changed" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                <TextBox Grid.Column="1" Text="{Binding ElementName=RingRotationSlider, Path=Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Center" TextAlignment="Center"/>
+                            </Grid>
+                        </StackPanel>
+                        
+                        <ToggleSwitch x:Name="RingRoundedToggle" Header="Rounded Ends" IsOn="True" Toggled="ElementProp_Changed"/>
+
+                        <TextBlock Text="Fill Color" Margin="0,10,0,0"/>
+                        <DropDownButton x:Name="RingFillColorBtn" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left">
+                            <DropDownButton.Content>
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <Border x:Name="RingFillColorPreview" Width="20" Height="20" CornerRadius="4" Background="#0078D7" BorderBrush="Gray" BorderThickness="1"/>
+                                    <TextBlock x:Name="RingFillColorHex" Text="#0078D7" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </DropDownButton.Content>
+                            <DropDownButton.Flyout>
+                                <Flyout>
+                                    <ColorPicker x:Name="RingFillColorPicker" ColorChanged="ElementPropColor_Changed"/>
+                                </Flyout>
+                            </DropDownButton.Flyout>
+                        </DropDownButton>
+                        <TextBlock Text="Background Color"/>
+                        <DropDownButton x:Name="RingBgColorBtn" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left">
+                            <DropDownButton.Content>
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <Border x:Name="RingBgColorPreview" Width="20" Height="20" CornerRadius="4" Background="#E6E6E6" BorderBrush="Gray" BorderThickness="1"/>
+                                    <TextBlock x:Name="RingBgColorHex" Text="#E6E6E6" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </DropDownButton.Content>
+                            <DropDownButton.Flyout>
+                                <Flyout>
+                                    <ColorPicker x:Name="RingBgColorPicker" ColorChanged="ElementPropColor_Changed"/>
+                                </Flyout>
+                            </DropDownButton.Flyout>
+                        </DropDownButton>
+                    </StackPanel>
                 </StackPanel>
             </ScrollViewer>
         </Border>
@@ -468,6 +529,12 @@
                     <StackPanel Orientation="Horizontal" Spacing="8">
                         <FontIcon Glyph="&#xEB9F;" FontSize="14"/>
                         <TextBlock Text="Image" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+                <Button Click="AddRingBtn_Click" Style="{StaticResource AccentButtonStyle}" CornerRadius="10">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon Glyph="&#xEA3A;" FontSize="14"/>
+                        <TextBlock Text="Ring" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
                 <AppBarSeparator />

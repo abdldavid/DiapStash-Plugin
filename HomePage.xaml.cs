@@ -56,7 +56,8 @@ namespace DiapStash_Plugin
                     Content = new TextBlock
                     {
                         Text = "🚀 Major Updates:\n" +
-                               "• New Visual Editor: Added alignment options, image custom URL support, and better widget properties.\n" +
+                               "• Overlay Editor: Added Progress Rings & Arches! Create circular gauges bound to live data metrics.\n" +
+                               "• New Visual Editor: Added alignment options, image custom URL support, precise textboxes for sliders, and better widget properties.\n" +
                                "• Performance: Persistent background disk caching saves quota usage across app restarts.\n" +
                                "• OBS Overlay: Added transition time configurations, image placeholder fixes, and fallback icons.\n" +
                                "• Integration: Rebuilt internal engine orchestration with complete memory footprint reduction.\n\n" +

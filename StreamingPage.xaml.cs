@@ -240,25 +240,36 @@ namespace DiapStash_Plugin
         }
 
         // --- SPAWNING ---
+        private int GetMaxZ() => OverlayServer.Instance.Elements.Count > 0 ? OverlayServer.Instance.Elements.Max(e => e.ZIndex) : 0;
         private void AddTextBtn_Click(object sender, RoutedEventArgs e)
         {
             SaveStateForUndo();
-            var el = new TextElement { X = 50, Y = 50, Width = 200, Height = 40, ZIndex = OverlayServer.Instance.Elements.Count, CustomText = "New Text" };
+            var el = new TextElement { X = 50, Y = 50, Width = 200, Height = 40, ZIndex = GetMaxZ() + 1, CustomText = "New Text" };
             OverlayServer.Instance.Elements.Add(el);
             UpdateLocalPreview(); SavePages(); _ = SyncDesignWithOverlayServerAsync();
         }
         private void AddBarBtn_Click(object sender, RoutedEventArgs e)
         {
             SaveStateForUndo();
-            var el = new BarElement { X = 50, Y = 100, Width = 200, Height = 12, ZIndex = OverlayServer.Instance.Elements.Count };
+            var el = new BarElement { X = 50, Y = 100, Width = 200, Height = 12, ZIndex = GetMaxZ() + 1 };
             OverlayServer.Instance.Elements.Add(el);
             UpdateLocalPreview(); SavePages(); _ = SyncDesignWithOverlayServerAsync();
         }
         private void AddImageBtn_Click(object sender, RoutedEventArgs e)
         {
             SaveStateForUndo();
-            var el = new ImageElement { X = 50, Y = 150, Width = 100, Height = 100, ZIndex = OverlayServer.Instance.Elements.Count };
+            var el = new ImageElement { X = 50, Y = 50, Width = 100, Height = 100, ZIndex = GetMaxZ() + 1, Name = "New Image" };
             OverlayServer.Instance.Elements.Add(el);
+            SelectOnly(el);
+            UpdateLocalPreview(); SavePages(); _ = SyncDesignWithOverlayServerAsync();
+        }
+
+        private void AddRingBtn_Click(object sender, RoutedEventArgs e)
+        {
+            SaveStateForUndo();
+            var el = new RingElement { X = 50, Y = 50, Width = 150, Height = 150, ZIndex = GetMaxZ() + 1, Name = "New Ring" };
+            OverlayServer.Instance.Elements.Add(el);
+            SelectOnly(el);
             UpdateLocalPreview(); SavePages(); _ = SyncDesignWithOverlayServerAsync();
         }
 
@@ -515,10 +526,69 @@ namespace DiapStash_Plugin
                             
                             b.Child = imgControl;
                         } catch { }
-                    } else {
-                        b.Child = new FontIcon { Glyph = "\uEB9F", FontSize = 24, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(128, 0, 0, 0)) };
                     }
                     ui = b;
+                }
+                else if (el is RingElement re)
+                {
+                    iconGlyph = "\uEA3A";
+                    var grid = new Grid { Width = el.Width, Height = el.Height };
+                    double t = re.StrokeThickness;
+                    double r = Math.Min(el.Width, el.Height) / 2.0 - t / 2.0;
+                    if (r < 1) r = 1;
+                    
+                    double percentage = 0.5;
+                    if (_previewMode)
+                    {
+                        if (re.DataSource == "Wetness") percentage = OverlayServer.Instance.LiveWetPercentage / 100.0;
+                        else if (re.DataSource == "Messiness") percentage = OverlayServer.Instance.LiveMessPercentage / 100.0;
+                    }
+
+                    if (re.IsFullCircle || re.ArcAngle >= 359.9)
+                    {
+                        var bg = new Microsoft.UI.Xaml.Shapes.Ellipse { Width = r * 2, Height = r * 2, Stroke = new SolidColorBrush(HexToColor(re.BgColorHex)), StrokeThickness = t, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+                        var fg = new Microsoft.UI.Xaml.Shapes.Ellipse { Width = r * 2, Height = r * 2, Stroke = new SolidColorBrush(HexToColor(re.FillColorHex)), StrokeThickness = t, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+                        if (re.RoundedCorners) { bg.StrokeStartLineCap = Microsoft.UI.Xaml.Media.PenLineCap.Round; bg.StrokeEndLineCap = Microsoft.UI.Xaml.Media.PenLineCap.Round; fg.StrokeStartLineCap = Microsoft.UI.Xaml.Media.PenLineCap.Round; fg.StrokeEndLineCap = Microsoft.UI.Xaml.Media.PenLineCap.Round; }
+                        
+                        double circumference = 2 * Math.PI * r;
+                        // For stroke dash array, WinUI uses multiples of stroke thickness.
+                        fg.StrokeDashArray = new Microsoft.UI.Xaml.Media.DoubleCollection { circumference / t, circumference / t };
+                        fg.StrokeDashOffset = (circumference / t) * (1 - percentage);
+                        
+                        grid.Children.Add(bg);
+                        grid.Children.Add(fg);
+                        grid.RenderTransformOrigin = new Windows.Foundation.Point(0.5, 0.5);
+                        grid.RenderTransform = new Microsoft.UI.Xaml.Media.RotateTransform { Angle = re.ArcRotation - 90 };
+                    }
+                    else
+                    {
+                        Microsoft.UI.Xaml.Shapes.Path CreateArcPath(double angle, string colorHex)
+                        {
+                            var path = new Microsoft.UI.Xaml.Shapes.Path { Stroke = new SolidColorBrush(HexToColor(colorHex)), StrokeThickness = t };
+                            if (re.RoundedCorners) { path.StrokeStartLineCap = Microsoft.UI.Xaml.Media.PenLineCap.Round; path.StrokeEndLineCap = Microsoft.UI.Xaml.Media.PenLineCap.Round; }
+                            
+                            double cx = el.Width / 2; double cy = el.Height / 2;
+                            double startAngleRad = (re.ArcRotation - 90) * Math.PI / 180.0;
+                            double endAngleRad = (re.ArcRotation - 90 + angle) * Math.PI / 180.0;
+                            
+                            var ptStart = new Windows.Foundation.Point(cx + r * Math.Cos(startAngleRad), cy + r * Math.Sin(startAngleRad));
+                            var ptEnd = new Windows.Foundation.Point(cx + r * Math.Cos(endAngleRad), cy + r * Math.Sin(endAngleRad));
+                            
+                            var geo = new Microsoft.UI.Xaml.Media.PathGeometry();
+                            var fig = new Microsoft.UI.Xaml.Media.PathFigure { StartPoint = ptStart, IsClosed = false };
+                            fig.Segments.Add(new Microsoft.UI.Xaml.Media.ArcSegment { Point = ptEnd, Size = new Windows.Foundation.Size(r, r), IsLargeArc = angle > 180, SweepDirection = Microsoft.UI.Xaml.Media.SweepDirection.Clockwise });
+                            geo.Figures.Add(fig);
+                            path.Data = geo;
+                            return path;
+                        }
+                        
+                        if (re.ArcAngle > 0)
+                        {
+                            grid.Children.Add(CreateArcPath(re.ArcAngle, re.BgColorHex));
+                            if (percentage > 0) grid.Children.Add(CreateArcPath(re.ArcAngle * percentage, re.FillColorHex));
+                        }
+                    }
+                    ui = grid;
                 }
 
                 if (ui != null)
@@ -769,6 +839,7 @@ namespace DiapStash_Plugin
                 Properties_Text.Visibility = Visibility.Collapsed;
                 Properties_Bar.Visibility = Visibility.Collapsed;
                 Properties_Image.Visibility = Visibility.Collapsed;
+                Properties_Ring.Visibility = Visibility.Collapsed;
 
                 if (_selectedModel != null)
                 {
@@ -832,6 +903,26 @@ namespace DiapStash_Plugin
                     ImageCustomUrlContainer.Visibility = ie.DataSource == "Custom" ? Visibility.Visible : Visibility.Collapsed;
 
                     ImageStretchCombo.SelectedIndex = ie.Stretch == "Uniform" ? 0 : (ie.Stretch == "UniformToFill" ? 1 : 2);
+                }
+                else if (_selectedModel is RingElement re)
+                {
+                    Properties_Ring.Visibility = Visibility.Visible;
+                    RingDataSourceCombo.SelectedIndex = re.DataSource == "Messiness" ? 1 : 0;
+                    RingThicknessSlider.Value = re.StrokeThickness;
+                    RingFullCircleToggle.IsOn = re.IsFullCircle;
+                    RingArcAngleSlider.Value = re.ArcAngle;
+                    RingRotationSlider.Value = re.ArcRotation;
+                    RingRoundedToggle.IsOn = re.RoundedCorners;
+                    
+                    RingArcProperties.Visibility = re.IsFullCircle ? Visibility.Collapsed : Visibility.Visible;
+
+                    RingFillColorHex.Text = re.FillColorHex;
+                    RingFillColorPreview.Background = new SolidColorBrush(HexToColor(re.FillColorHex));
+                    RingFillColorPicker.Color = HexToColor(re.FillColorHex);
+
+                    RingBgColorHex.Text = re.BgColorHex;
+                    RingBgColorPreview.Background = new SolidColorBrush(HexToColor(re.BgColorHex));
+                    RingBgColorPicker.Color = HexToColor(re.BgColorHex);
                 }
                 
                 // Sync ZOrderTree selection
@@ -942,6 +1033,25 @@ namespace DiapStash_Plugin
 
                 // Update custom URL input visibility
                 ImageCustomUrlBox.Visibility = ie.DataSource == "Custom" ? Visibility.Visible : Visibility.Collapsed;
+            }
+            else if (_selectedModel is RingElement re)
+            {
+                re.DataSource = (RingDataSourceCombo.SelectedItem as ComboBoxItem)?.Content.ToString();
+                re.StrokeThickness = RingThicknessSlider.Value;
+                re.IsFullCircle = RingFullCircleToggle.IsOn;
+                re.ArcAngle = RingArcAngleSlider.Value;
+                re.ArcRotation = RingRotationSlider.Value;
+                re.RoundedCorners = RingRoundedToggle.IsOn;
+                
+                re.FillColorHex = ColorToHex(RingFillColorPicker.Color);
+                RingFillColorHex.Text = re.FillColorHex;
+                RingFillColorPreview.Background = new SolidColorBrush(RingFillColorPicker.Color);
+
+                re.BgColorHex = ColorToHex(RingBgColorPicker.Color);
+                RingBgColorHex.Text = re.BgColorHex;
+                RingBgColorPreview.Background = new SolidColorBrush(RingBgColorPicker.Color);
+
+                RingArcProperties.Visibility = re.IsFullCircle ? Visibility.Collapsed : Visibility.Visible;
             }
             UpdateLocalPreview(); SavePages(); _ = SyncDesignWithOverlayServerAsync();
         }

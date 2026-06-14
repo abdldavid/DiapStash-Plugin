@@ -298,6 +298,42 @@ namespace DiapStash_Plugin
                                         dom.innerHTML = `<span style='font-size:24px'>🛒</span>`;
                                     }
                                 }
+                                else if (type === 'ring') {
+                                    const t = el.strokeThickness !== undefined ? el.strokeThickness : (el.StrokeThickness !== undefined ? el.StrokeThickness : 10);
+                                    const isFull = el.isFullCircle !== undefined ? el.isFullCircle : (el.IsFullCircle !== undefined ? el.IsFullCircle : true);
+                                    const arcAng = el.arcAngle !== undefined ? el.arcAngle : (el.ArcAngle !== undefined ? el.ArcAngle : 360);
+                                    const arcRot = el.arcRotation !== undefined ? el.arcRotation : (el.ArcRotation !== undefined ? el.ArcRotation : 0);
+                                    const round = el.roundedCorners !== undefined ? el.roundedCorners : (el.RoundedCorners !== undefined ? el.RoundedCorners : true);
+                                    const ds = el.dataSource || el.DataSource;
+                                    const fillCol = el.fillColorHex || el.FillColorHex;
+                                    const bgCol = el.bgColorHex || el.BgColorHex;
+                                    
+                                    const w = el.width !== undefined ? el.width : el.Width;
+                                    const h = el.height !== undefined ? el.height : el.Height;
+                                    
+                                    let val = 0;
+                                    if (ds === 'Messiness') val = d.liveMess;
+                                    else val = d.liveWet;
+                                    
+                                    const pct = val / 100.0;
+                                    const r = Math.max(1, Math.min(w, h) / 2.0 - t / 2.0);
+                                    const cx = w / 2;
+                                    const cy = h / 2;
+                                    
+                                    const lineCap = round ? 'round' : 'butt';
+                                    const circ = 2 * Math.PI * r;
+                                    const arcLen = isFull ? circ : circ * (arcAng / 360.0);
+                                    const rotAng = arcRot - 90;
+                                    
+                                    const bgDashArr = `${arcLen} ${circ}`;
+                                    const fgDashOff = circ - (arcLen * pct);
+                                    
+                                    let svgHTML = `<svg width='${w}' height='${h}' viewBox='0 0 ${w} ${h}'>`;
+                                    svgHTML += `<circle cx='${cx}' cy='${cy}' r='${r}' fill='none' stroke='${formatCssColor(bgCol)}' stroke-width='${t}' stroke-linecap='${lineCap}' stroke-dasharray='${bgDashArr}' stroke-dashoffset='0' transform='rotate(${rotAng} ${cx} ${cy})' />`;
+                                    svgHTML += `<circle cx='${cx}' cy='${cy}' r='${r}' fill='none' stroke='${formatCssColor(fillCol)}' stroke-width='${t}' stroke-linecap='${lineCap}' stroke-dasharray='${circ} ${circ}' stroke-dashoffset='${fgDashOff}' transform='rotate(${rotAng} ${cx} ${cy})' style='transition: stroke-dashoffset 1s ease;' />`;
+                                    svgHTML += `</svg>`;
+                                    dom.innerHTML = svgHTML;
+                                }
                                 parentDom.appendChild(dom);
                             }
                             d.elements.sort((a,b) => (a.zIndex !== undefined ? a.zIndex : a.ZIndex) - (b.zIndex !== undefined ? b.zIndex : b.ZIndex)).forEach(el => buildElement(el, c));

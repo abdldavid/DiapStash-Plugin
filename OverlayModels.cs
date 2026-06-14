@@ -26,6 +26,7 @@ namespace DiapStash_Plugin
     [JsonDerivedType(typeof(BarElement), typeDiscriminator: "bar")]
     [JsonDerivedType(typeof(ImageElement), typeDiscriminator: "image")]
     [JsonDerivedType(typeof(GroupElement), typeDiscriminator: "group")]
+    [JsonDerivedType(typeof(RingElement), typeDiscriminator: "ring")]
     public abstract class OverlayElement
     {
         public string Id { get; set; } = System.Guid.NewGuid().ToString("N");
@@ -74,5 +75,18 @@ namespace DiapStash_Plugin
         public string DataSource { get; set; } = "DiapStashImage"; // Custom, DiapStashImage
         public string CustomUrl { get; set; } = "";
         public string Stretch { get; set; } = "UniformToFill"; // Uniform, UniformToFill, Fill
+    }
+
+    public class RingElement : OverlayElement
+    {
+        public RingElement() { ElementType = "ring"; }
+        public string DataSource { get; set; } = "Wetness"; // Wetness, Messiness
+        public double StrokeThickness { get; set; } = 10;
+        public bool IsFullCircle { get; set; } = true;
+        public double ArcAngle { get; set; } = 360; // 0 to 360
+        public double ArcRotation { get; set; } = 0; // standard rotation offset
+        public bool RoundedCorners { get; set; } = true;
+        public string FillColorHex { get; set; } = "#0078D7";
+        public string BgColorHex { get; set; } = "#E6E6E6";
     }
 }
