@@ -29,6 +29,9 @@
             <Button x:Name="TopRightAccountBtn" x:Uid="BtnSwitchAccount" Click="LoginPortal_Click" Style="{StaticResource DefaultButtonStyle}"/>
         </StackPanel>
 
-        <Button x:Uid="BtnViewLogs" Click="OpenFloatingLog_Click" HorizontalAlignment="Right" VerticalAlignment="Bottom" Style="{StaticResource DefaultButtonStyle}"/>
+        <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right" VerticalAlignment="Bottom">
+            <Button x:Name="ChangelogBtn" Content="Changelog" Click="OpenChangelog_Click" Style="{StaticResource DefaultButtonStyle}"/>
+            <Button x:Uid="BtnViewLogs" Click="OpenFloatingLog_Click" Style="{StaticResource DefaultButtonStyle}"/>
+        </StackPanel>
     </Grid>
 </UserControl>

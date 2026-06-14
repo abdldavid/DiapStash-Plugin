@@ -317,8 +317,16 @@
                             <ComboBoxItem Content="Slide Up"/>
                             <ComboBoxItem Content="Bounce In"/>
                         </ComboBox>
-                        <Slider x:Name="TransitionSpeedSlider" Header="Transition Speed (ms)" Minimum="100" Maximum="1500" Value="400" ValueChanged="Control_Changed"/>
-                        <Slider x:Name="DisplayDurationSlider" Header="Stay On Screen (ms)" Minimum="1000" Maximum="15000" Value="5000" ValueChanged="Control_Changed"/>
+                        <TextBlock Text="Transition Speed (ms)" FontWeight="SemiBold" Margin="0,5,0,0"/>
+                        <Grid ColumnDefinitions="*,80">
+                            <Slider Grid.Column="0" x:Name="TransitionSpeedSlider" Minimum="100" Maximum="1500" Value="400" ValueChanged="Control_Changed" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                            <TextBox Grid.Column="1" x:Name="TransitionSpeedBox" Text="{Binding ElementName=TransitionSpeedSlider, Path=Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Center" TextAlignment="Center"/>
+                        </Grid>
+                        <TextBlock Text="Stay On Screen (ms)" FontWeight="SemiBold" Margin="0,5,0,0"/>
+                        <Grid ColumnDefinitions="*,80">
+                            <Slider Grid.Column="0" x:Name="DisplayDurationSlider" Minimum="1000" Maximum="15000" Value="5000" ValueChanged="Control_Changed" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                            <TextBox Grid.Column="1" x:Name="DisplayDurationBox" Text="{Binding ElementName=DisplayDurationSlider, Path=Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Center" TextAlignment="Center"/>
+                        </Grid>
                     </StackPanel>
 
                     <StackPanel x:Name="Properties_Text" Spacing="15" Visibility="Collapsed">
@@ -420,7 +428,7 @@
                             <ComboBoxItem Content="DiapStashImage"/>
                             <ComboBoxItem Content="Custom"/>
                         </ComboBox>
-                        <Grid>
+                        <Grid x:Name="ImageCustomUrlContainer">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>

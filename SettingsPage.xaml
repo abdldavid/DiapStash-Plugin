@@ -42,8 +42,13 @@
                 <TextBlock x:Uid="SettingsDiapStashDesc" FontSize="13" Opacity="0.6"/>
 
                 <StackPanel Spacing="12" Margin="0,10,0,0">
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <HyperlinkButton Content="DiapStash Website" NavigateUri="https://diapstash.com" />
+                        <HyperlinkButton Content="Developer Documentation" NavigateUri="https://docs.diapstash.com" />
+                    </StackPanel>
+
                     <StackPanel Orientation="Horizontal" Spacing="12" Margin="0,4,0,8">
-                        <Button x:Name="AuthBtn" Content="Link DiapStash Account" Click="OpenPortal_Click" Style="{StaticResource AccentButtonStyle}" Width="210" Height="36"/>
+                        <Button x:Name="AuthBtn" Content="Link DiapStash Account" Click="OpenPortal_Click" Background="#47289B" Foreground="White" Width="210" Height="36"/>
                         <Button x:Name="ChangeAccountBtn" Content="Change Account" Click="ChangeAccount_Click" Width="150" Height="36" ToolTipService.ToolTip="Login with a different account using the same API credentials."/>
                     </StackPanel>
 

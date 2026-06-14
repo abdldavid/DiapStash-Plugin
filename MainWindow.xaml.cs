@@ -51,6 +51,7 @@ namespace DiapStash_Plugin
         }
 
         public SettingsPage GetSettingsPageInstance() => _settingsPage;
+        public HomePage GetHomePageInstance() => (HomePage)_homePage;
 
         private void NavView_ItemInvokedHandler(NavigationView sender, NavigationViewItemInvokedEventArgs args)
         {

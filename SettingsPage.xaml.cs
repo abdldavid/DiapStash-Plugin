@@ -16,7 +16,8 @@ namespace DiapStash_Plugin
         private HttpListener? _oauthListener;
         private readonly HttpClient _tokenHttpClient = new HttpClient(new HttpClientHandler
         {
-            ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true
+            ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true,
+            SslProtocols = System.Security.Authentication.SslProtocols.Tls12 | System.Security.Authentication.SslProtocols.Tls13
         });
 
         public SettingsPage()
@@ -29,7 +30,7 @@ namespace DiapStash_Plugin
 
             try
             {
-                string credentialsPath = Path.Combine(AppContext.BaseDirectory, "credentials.json");
+                string credentialsPath = Path.Combine(DiapStashClient.AppDataFolder, "credentials.json");
                 if (File.Exists(credentialsPath))
                 {
                     string rawJson = File.ReadAllText(credentialsPath);
@@ -94,7 +95,7 @@ namespace DiapStash_Plugin
         {
             try
             {
-                string credentialsPath = Path.Combine(AppContext.BaseDirectory, "credentials.json");
+                string credentialsPath = Path.Combine(DiapStashClient.AppDataFolder, "credentials.json");
                 string clientId = "", token = "", clientSecret = "", refreshToken = "", customTemplate = "";
 
                 if (File.Exists(credentialsPath))
@@ -241,8 +242,8 @@ namespace DiapStash_Plugin
     <div class='card'>
         <img class='icon' src='https://raw.githubusercontent.com/abdldavid/DiapStash-Plugin/master/Assets/StoreLogo.scale-400.png' alt='App Icon'>
         <h2>Authentication Successful</h2>
-        <p>You have successfully linked your DiapStash account with the JakeyTTS plugin. You can now close this window safely.</p>
-        <button class='btn' onclick='window.close()'>Close Window</button>
+        <p>You have successfully linked your DiapStash account. The app should now appear automatically.</p>
+        <button class='btn' onclick='window.close();'>Return to App (Close Window)</button>
     </div>
 </body>
 </html>";
@@ -316,7 +317,7 @@ namespace DiapStash_Plugin
 
                     try
                     {
-                        string credentialsPath = Path.Combine(AppContext.BaseDirectory, "credentials.json");
+                        string credentialsPath = Path.Combine(DiapStashClient.AppDataFolder, "credentials.json");
                         string existingTtsUrl = "ws://localhost:8889/";
                         string existingTemplate = "";
 
@@ -350,6 +351,7 @@ namespace DiapStash_Plugin
                         {
                             StashTokenBox.Text = accessToken;
                             MainWindow.Instance?.NavigateToPage("Home");
+                            _ = MainWindow.Instance?.GetHomePageInstance().CheckPlatformStateAsync();
                             MainWindow.Instance?.Activate();
                         });
                     }
@@ -373,7 +375,7 @@ namespace DiapStash_Plugin
 
             try
             {
-                string credentialsPath = Path.Combine(AppContext.BaseDirectory, "credentials.json");
+                string credentialsPath = Path.Combine(DiapStashClient.AppDataFolder, "credentials.json");
                 if (File.Exists(credentialsPath))
                 {
                     string rawJson = File.ReadAllText(credentialsPath);
@@ -425,7 +427,7 @@ namespace DiapStash_Plugin
 
                     try
                     {
-                        string credentialsPath = Path.Combine(AppContext.BaseDirectory, "credentials.json");
+                        string credentialsPath = Path.Combine(DiapStashClient.AppDataFolder, "credentials.json");
                         var updatedBackup = new
                         {
                             AccessToken = newAccessToken,

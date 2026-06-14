@@ -25,7 +25,7 @@ namespace DiapStash_Plugin
 
             try
             {
-                string credentialsPath = Path.Combine(AppContext.BaseDirectory, "credentials.json");
+                string credentialsPath = Path.Combine(DiapStashClient.AppDataFolder, "credentials.json");
                 if (File.Exists(credentialsPath))
                 {
                     string rawCreds = File.ReadAllText(credentialsPath);
@@ -112,7 +112,7 @@ namespace DiapStash_Plugin
                         Name = primaryItem.Name,
                         Left = group.Sum(i => i.Left),
                         ImageUrl = string.IsNullOrWhiteSpace(primaryItem.ImageUrl) || !primaryItem.ImageUrl.StartsWith("http")
-                            ? "https://diapstash.com/diapstash/assets/icons/Diaper.svg"
+                            ? "https://diapstash.com/diapstash/assets/icons/Diaper.png"
                             : primaryItem.ImageUrl
                     };
                 });

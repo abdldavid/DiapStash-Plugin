@@ -41,7 +41,7 @@
 
                             <Grid Grid.Column="0" Width="140" Height="140" Margin="0,0,25,0" VerticalAlignment="Top">
                                 <Border CornerRadius="8" Background="{ThemeResource SubtleFillColorSecondaryBrush}">
-                                    <Image x:Name="CardProductImage" Stretch="UniformToFill" Source="https://diapstash.com/diapstash/assets/icons/Diaper.svg" RenderTransformOrigin="0.5,0.5"/>
+                                    <Image x:Name="CardProductImage" Stretch="UniformToFill" Source="https://diapstash.com/diapstash/assets/icons/Diaper.png" RenderTransformOrigin="0.5,0.5"/>
                                 </Border>
                                 <Border x:Name="CardStatusBadge" VerticalAlignment="Top" HorizontalAlignment="Left" Margin="-5,-5,0,0" Padding="8,4,8,4" CornerRadius="4" Background="{ThemeResource SystemAccentColor}">
                                     <TextBlock x:Name="CardStatusBadgeText" Text="ACTIVE" FontSize="10" FontWeight="Bold" Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"/>

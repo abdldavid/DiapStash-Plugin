@@ -36,7 +36,7 @@ namespace DiapStash_Plugin
         {
             try
             {
-                string fallbackPath = Path.Combine(AppContext.BaseDirectory, "rules_matrix.json");
+                string fallbackPath = Path.Combine(DiapStashClient.AppDataFolder, "rules_matrix.json");
                 if (File.Exists(fallbackPath))
                 {
                     string fileRaw = File.ReadAllText(fallbackPath);
@@ -72,7 +72,7 @@ namespace DiapStash_Plugin
             try
             {
                 var json = JsonSerializer.Serialize(ComplexRuleCards);
-                string fallbackPath = Path.Combine(AppContext.BaseDirectory, "rules_matrix.json");
+                string fallbackPath = Path.Combine(DiapStashClient.AppDataFolder, "rules_matrix.json");
                 File.WriteAllText(fallbackPath, json);
             }
             catch { }
@@ -292,7 +292,7 @@ namespace DiapStash_Plugin
 
             try
             {
-                var state = await DiapStashClient.Instance.FetchLatestChangeStateObjectAsync(forceRefresh);
+                var state = await DiapStashClient.Instance.FetchLatestChangeStateObjectAsync(forceRefresh, true);
 
                 if (state == null)
                 {
@@ -301,7 +301,7 @@ namespace DiapStash_Plugin
                     if (refreshSuccess)
                     {
                         LogReceived?.Invoke("✨ Token successfully renewed. Syncing telemetry channels...");
-                        state = await DiapStashClient.Instance.FetchLatestChangeStateObjectAsync(forceRefresh = true);
+                        state = await DiapStashClient.Instance.FetchLatestChangeStateObjectAsync(forceRefresh = true, true);
                     }
                 }
 
@@ -412,7 +412,7 @@ namespace DiapStash_Plugin
 
                 try
                 {
-                    string templatePath = Path.Combine(AppContext.BaseDirectory, "saved_template.txt");
+                    string templatePath = Path.Combine(DiapStashClient.AppDataFolder, "saved_template.txt");
                     if (File.Exists(templatePath))
                     {
                         userCustomTemplate = File.ReadAllText(templatePath);
@@ -485,7 +485,7 @@ namespace DiapStash_Plugin
 
             try
             {
-                string credentialsPath = Path.Combine(AppContext.BaseDirectory, "credentials.json");
+                string credentialsPath = Path.Combine(DiapStashClient.AppDataFolder, "credentials.json");
                 if (File.Exists(credentialsPath))
                 {
                     string rawCreds = File.ReadAllText(credentialsPath);

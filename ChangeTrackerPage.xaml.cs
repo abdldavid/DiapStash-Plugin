@@ -22,7 +22,7 @@ namespace DiapStash_Plugin
 
             try
             {
-                string templatePath = Path.Combine(AppContext.BaseDirectory, "saved_template.txt");
+                string templatePath = Path.Combine(DiapStashClient.AppDataFolder, "saved_template.txt");
                 if (File.Exists(templatePath))
                 {
                     currentTemplate = File.ReadAllText(templatePath);
@@ -30,7 +30,7 @@ namespace DiapStash_Plugin
                 else
                 {
                     // Fallback to checking inside credentials configuration file matrix
-                    string credentialsPath = Path.Combine(AppContext.BaseDirectory, "credentials.json");
+                    string credentialsPath = Path.Combine(DiapStashClient.AppDataFolder, "credentials.json");
                     if (File.Exists(credentialsPath))
                     {
                         string rawCreds = File.ReadAllText(credentialsPath);
@@ -59,7 +59,7 @@ namespace DiapStash_Plugin
             _cachedTtsUrl = "ws://localhost:8889/";
 
             // FIXED: Isolated configuration loading pipeline strictly to local disk metrics files
-            string credentialsPath = Path.Combine(AppContext.BaseDirectory, "credentials.json");
+            string credentialsPath = Path.Combine(DiapStashClient.AppDataFolder, "credentials.json");
             if (File.Exists(credentialsPath))
             {
                 try
@@ -169,7 +169,7 @@ namespace DiapStash_Plugin
             }
             else
             {
-                CardProductImage.Source = new Microsoft.UI.Xaml.Media.Imaging.SvgImageSource(new Uri("https://diapstash.com/diapstash/assets/icons/Diaper.svg"));
+                CardProductImage.Source = new Microsoft.UI.Xaml.Media.Imaging.BitmapImage(new Uri("https://diapstash.com/diapstash/assets/icons/Diaper.png"));
             }
 
             BadgeLeak.Visibility = statePayload.HasLeak ? Visibility.Visible : Visibility.Collapsed;
@@ -289,10 +289,10 @@ namespace DiapStash_Plugin
             // FIXED: Cleanly serialize parameters to raw local files to bypass sandboxed app setting containers
             try
             {
-                string templatePath = Path.Combine(AppContext.BaseDirectory, "saved_template.txt");
+                string templatePath = Path.Combine(DiapStashClient.AppDataFolder, "saved_template.txt");
                 File.WriteAllText(templatePath, customText);
 
-                string credentialsPath = Path.Combine(AppContext.BaseDirectory, "credentials.json");
+                string credentialsPath = Path.Combine(DiapStashClient.AppDataFolder, "credentials.json");
                 if (File.Exists(credentialsPath))
                 {
                     string rawJson = File.ReadAllText(credentialsPath);

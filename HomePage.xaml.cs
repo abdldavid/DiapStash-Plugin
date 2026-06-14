@@ -18,10 +18,64 @@ namespace DiapStash_Plugin
         public HomePage()
         {
             this.InitializeComponent();
-            this.Loaded += (s, e) => _ = CheckPlatformStateAsync();
+            this.Loaded += async (s, e) => {
+                _ = CheckPlatformStateAsync();
+                await CheckVersionAndShowChangelogAsync();
+            };
         }
 
-        private async Task CheckPlatformStateAsync()
+        private async Task CheckVersionAndShowChangelogAsync()
+        {
+            try
+            {
+                string currentVersion = "2.0.1.0";
+                string versionFile = Path.Combine(DiapStashClient.AppDataFolder, "last_version.txt");
+                string lastSeen = File.Exists(versionFile) ? File.ReadAllText(versionFile).Trim() : "";
+                
+                if (lastSeen != currentVersion)
+                {
+                    File.WriteAllText(versionFile, currentVersion);
+                    await ShowChangelogDialogAsync();
+                }
+            }
+            catch { }
+        }
+
+        private async void OpenChangelog_Click(object sender, RoutedEventArgs e)
+        {
+            await ShowChangelogDialogAsync();
+        }
+
+        private async Task ShowChangelogDialogAsync()
+        {
+            var dialog = new ContentDialog
+            {
+                Title = "DiapStash Plugin - What's New v2.0.1",
+                Content = new ScrollViewer
+                {
+                    Content = new TextBlock
+                    {
+                        Text = "🚀 Major Updates:\n" +
+                               "• New Visual Editor: Added alignment options, image custom URL support, and better widget properties.\n" +
+                               "• Performance: Persistent background disk caching saves quota usage across app restarts.\n" +
+                               "• OBS Overlay: Added transition time configurations, image placeholder fixes, and fallback icons.\n" +
+                               "• Integration: Rebuilt internal engine orchestration with complete memory footprint reduction.\n\n" +
+                               "🛠 Bug Fixes:\n" +
+                               "• Resolved the WinRT 0x80073D54 app crash loop when authenticating.\n" +
+                               "• Fixed issues with SVG images not loading properly.\n" +
+                               "• Stabilized the HTTP overlay streaming server connectivity.",
+                        TextWrapping = TextWrapping.Wrap,
+                        Margin = new Thickness(0,10,0,0)
+                    },
+                    MaxHeight = 400
+                },
+                CloseButtonText = "Awesome!",
+                XamlRoot = this.XamlRoot
+            };
+            await dialog.ShowAsync();
+        }
+
+        public async Task CheckPlatformStateAsync()
         {
             // FIXED: Stripped all ApplicationData container settings.
             // Pulled configuration tokens strictly out of our local disk credentials file map structure.
@@ -29,7 +83,7 @@ namespace DiapStash_Plugin
 
             try
             {
-                string credentialsPath = Path.Combine(AppContext.BaseDirectory, "credentials.json");
+                string credentialsPath = Path.Combine(DiapStashClient.AppDataFolder, "credentials.json");
                 if (File.Exists(credentialsPath))
                 {
                     string rawCreds = File.ReadAllText(credentialsPath);
@@ -71,15 +125,11 @@ namespace DiapStash_Plugin
             {
                 AppendLog("⏳ Access token expired or rejected. Attempting automated silent refresh cycle sequence...");
 
-                var settingsInstance = MainWindow.Instance?.GetSettingsPageInstance();
-                if (settingsInstance != null)
+                bool refreshSuccess = await DiapStashClient.Instance.RefreshAccessTokenAsync();
+                if (refreshSuccess)
                 {
-                    bool refreshSuccess = await settingsInstance.RefreshAccessTokenAsync();
-                    if (refreshSuccess)
-                    {
-                        AppendLog("✨ Token renewed successfully! Retrying state data synchronization sequence...");
-                        payloadCheck = await DiapStashClient.Instance.FetchLatestChangeStateObjectAsync();
-                    }
+                    AppendLog("✨ Token renewed successfully! Retrying state data synchronization sequence...");
+                    payloadCheck = await DiapStashClient.Instance.FetchLatestChangeStateObjectAsync();
                 }
             }
 

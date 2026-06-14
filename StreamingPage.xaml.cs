@@ -43,8 +43,8 @@ namespace DiapStash_Plugin
             UpdateSelectionBox(); RefreshPropertiesPanel();
         }
 
-        private readonly string _presetPath = System.IO.Path.Combine(AppContext.BaseDirectory, "overlay_preset.json");
-        private readonly string _pagesPath = System.IO.Path.Combine(AppContext.BaseDirectory, "overlay_pages.json");
+        private readonly string _presetPath = System.IO.Path.Combine(DiapStashClient.AppDataFolder, "overlay_preset.json");
+        private readonly string _pagesPath = System.IO.Path.Combine(DiapStashClient.AppDataFolder, "overlay_pages.json");
         private System.Collections.Generic.List<OverlayPreset> _pages = new();
         private int _activePageIndex = 0;
         private OverlayPreset _activePage => (_pages != null && _activePageIndex >= 0 && _activePageIndex < _pages.Count) ? _pages[_activePageIndex] : null;
@@ -497,6 +497,7 @@ namespace DiapStash_Plugin
                     else
                     {
                         if (_previewMode) url = OverlayServer.Instance.LiveImageUrl;
+                        if (string.IsNullOrEmpty(url)) url = "https://diapstash.com/diapstash/assets/icons/Diaper.png";
                     }
 
                     var stretchMode = Stretch.UniformToFill;
@@ -504,7 +505,16 @@ namespace DiapStash_Plugin
                     else if (ie.Stretch == "Fill") stretchMode = Stretch.Fill;
 
                     if (!string.IsNullOrEmpty(url)) {
-                        try { b.Child = new Image { Source = new BitmapImage(new Uri(url)), Stretch = stretchMode }; } catch { }
+                        try { 
+                            Microsoft.UI.Xaml.Media.ImageSource imgSource;
+                            if (url.EndsWith(".svg", StringComparison.OrdinalIgnoreCase)) imgSource = new Microsoft.UI.Xaml.Media.Imaging.SvgImageSource(new Uri(url));
+                            else imgSource = new Microsoft.UI.Xaml.Media.Imaging.BitmapImage(new Uri(url));
+                            
+                            var imgControl = new Image { Source = imgSource, Stretch = stretchMode };
+                            if (url == "https://diapstash.com/diapstash/assets/icons/Diaper.png") imgControl.Opacity = 0.8;
+                            
+                            b.Child = imgControl;
+                        } catch { }
                     } else {
                         b.Child = new FontIcon { Glyph = "\uEB9F", FontSize = 24, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(128, 0, 0, 0)) };
                     }
@@ -819,7 +829,7 @@ namespace DiapStash_Plugin
                     ImageCustomUrlBox.Text = ie.CustomUrl ?? "";
                     
                     // Hide custom URL box if not Custom
-                    ImageCustomUrlBox.Visibility = ie.DataSource == "Custom" ? Visibility.Visible : Visibility.Collapsed;
+                    ImageCustomUrlContainer.Visibility = ie.DataSource == "Custom" ? Visibility.Visible : Visibility.Collapsed;
 
                     ImageStretchCombo.SelectedIndex = ie.Stretch == "Uniform" ? 0 : (ie.Stretch == "UniformToFill" ? 1 : 2);
                 }

@@ -211,7 +211,6 @@ namespace DiapStash_Plugin
                                     else if (ds === 'Messiness') txt = d.liveMess + '%';
                                     else if (ds === 'LiveStatus') txt = d.liveStatus;
                                     
-                                    dom.innerText = txt;
                                     dom.style.fontFamily = el.fontFamily || el.FontFamily;
                                     dom.style.fontSize = (el.fontSize !== undefined ? el.fontSize : el.FontSize) + 'px';
                                     dom.style.fontWeight = el.fontWeight || el.FontWeight;
@@ -219,10 +218,16 @@ namespace DiapStash_Plugin
                                     dom.style.color = formatCssColor(el.colorHex || el.ColorHex);
                                     
                                     const align = el.textAlignment || el.TextAlignment || 'Left';
+                                    
+                                    const span = document.createElement('span');
+                                    span.innerText = txt;
+                                    span.style.width = '100%';
+                                    span.style.textAlign = align.toLowerCase();
+                                    dom.appendChild(span);
+                                    
                                     dom.style.display = 'flex';
                                     dom.style.alignItems = 'center';
                                     dom.style.justifyContent = align === 'Center' ? 'center' : (align === 'Right' ? 'flex-end' : 'flex-start');
-                                    dom.style.textAlign = align.toLowerCase();
                                     
                                     const wrap = el.textWrap !== undefined ? el.textWrap : el.TextWrap;
                                     dom.style.whiteSpace = wrap ? 'normal' : 'nowrap';
@@ -265,7 +270,10 @@ namespace DiapStash_Plugin
                                 else if (type === 'image') {
                                     const ds = el.dataSource || el.DataSource;
                                     let src = el.customUrl || el.CustomUrl;
-                                    if (ds === 'DiapStashImage') src = d.liveImage;
+                                    if (ds === 'DiapStashImage') {
+                                        src = d.liveImage;
+                                        if (!src) src = 'https://diapstash.com/diapstash/assets/icons/Diaper.png';
+                                    }
                                     
                                     const cr = el.cornerRadius !== undefined ? el.cornerRadius : (el.CornerRadius !== undefined ? el.CornerRadius : 6);
                                     dom.style.borderRadius = cr + 'px';
@@ -277,14 +285,15 @@ namespace DiapStash_Plugin
                                     dom.style.background = 'rgba(0,0,0,0.05)';
                                     
                                     if (src) {
-                                        const img = document.createElement('img');
-                                        img.src = src;
-                                        img.style.width = '100%';
-                                        img.style.height = '100%';
-                                        const stretch = el.stretch || el.Stretch;
-                                        img.style.objectFit = stretch === 'Uniform' ? 'contain' : (stretch === 'UniformToFill' ? 'cover' : 'fill');
-                                        img.style.borderRadius = 'inherit';
-                                        dom.appendChild(img);
+                                        dom.style.backgroundImage = 'url(' + src + ')';
+                                        dom.style.backgroundSize = el.stretch === 'Uniform' ? 'contain' : (el.stretch === 'Fill' ? '100% 100%' : 'cover');
+                                        dom.style.backgroundPosition = 'center';
+                                        dom.style.backgroundRepeat = 'no-repeat';
+                                        if (src === 'https://diapstash.com/diapstash/assets/icons/Diaper.png') {
+                                            dom.style.filter = 'opacity(0.8)';
+                                        } else {
+                                            dom.style.filter = 'none';
+                                        }
                                     } else {
                                         dom.innerHTML = `<span style='font-size:24px'>🛒</span>`;
                                     }

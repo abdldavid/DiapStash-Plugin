@@ -49,6 +49,16 @@ namespace DiapStash_Plugin
         private static DiapStashClient? _instance;
         public static DiapStashClient Instance => _instance ??= new DiapStashClient();
 
+        public static string AppDataFolder
+        {
+            get
+            {
+                string folder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "DiapStashPlugin");
+                if (!Directory.Exists(folder)) Directory.CreateDirectory(folder);
+                return folder;
+            }
+        }
+
         private readonly HttpClient _httpClient;
         private string _accessToken = string.Empty;
         private string _clientId = string.Empty;
@@ -58,18 +68,75 @@ namespace DiapStash_Plugin
         private DiapStashChangeState? _cachedChangeState;
         private DateTime _changeStateCacheExpiration = DateTime.MinValue;
 
-        private List<DiaperStockItem>? _cachedStockItems;
-        private DateTime _stockItemsCacheExpiration = DateTime.MinValue;
+        private DateTime _lastChangeStateFetchTime = DateTime.MinValue;
 
-        private readonly Dictionary<int, (string FullName, string ImageUrl)> _typeMetadataCache =
-            new Dictionary<int, (string FullName, string ImageUrl)>();
+        private List<DiaperStockItem>? _cachedStockItems;
+        private DateTime _lastStockItemsFetchTime = DateTime.MinValue;
+
+        private Dictionary<string, (string FullName, string ImageUrl)> _typeMetadataCache = new();
+
+        public class DiskCacheState
+        {
+            public DateTime LastStockItemsFetchTime { get; set; }
+            public List<DiaperStockItem>? CachedStockItems { get; set; }
+            public Dictionary<string, MetadataTuple> TypeMetadata { get; set; } = new();
+        }
+
+        public class MetadataTuple
+        {
+            public string FullName { get; set; } = "";
+            public string ImageUrl { get; set; } = "";
+        }
+
+        private void SaveCacheToDisk()
+        {
+            try
+            {
+                var state = new DiskCacheState
+                {
+                    LastStockItemsFetchTime = _lastStockItemsFetchTime,
+                    CachedStockItems = _cachedStockItems,
+                    TypeMetadata = _typeMetadataCache.ToDictionary(kvp => kvp.Key, kvp => new MetadataTuple { FullName = kvp.Value.FullName, ImageUrl = kvp.Value.ImageUrl })
+                };
+                string json = JsonSerializer.Serialize(state);
+                File.WriteAllText(Path.Combine(AppDataFolder, "api_cache.json"), json);
+            }
+            catch { }
+        }
+
+        private void LoadCacheFromDisk()
+        {
+            try
+            {
+                string path = Path.Combine(AppDataFolder, "api_cache.json");
+                if (File.Exists(path))
+                {
+                    string json = File.ReadAllText(path);
+                    var state = JsonSerializer.Deserialize<DiskCacheState>(json);
+                    if (state != null)
+                    {
+                        _lastStockItemsFetchTime = state.LastStockItemsFetchTime;
+                        _cachedStockItems = state.CachedStockItems;
+                        if (state.TypeMetadata != null)
+                        {
+                            foreach (var kvp in state.TypeMetadata)
+                            {
+                                _typeMetadataCache[kvp.Key] = (kvp.Value.FullName, kvp.Value.ImageUrl);
+                            }
+                        }
+                    }
+                }
+            }
+            catch { }
+        }
 
         private DiapStashClient()
         {
             var handler = new HttpClientHandler
             {
                 AutomaticDecompression = System.Net.DecompressionMethods.GZip | System.Net.DecompressionMethods.Deflate,
-                ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true
+                ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true,
+                SslProtocols = System.Security.Authentication.SslProtocols.Tls12 | System.Security.Authentication.SslProtocols.Tls13
             };
 
             _httpClient = new HttpClient(handler)
@@ -77,6 +144,7 @@ namespace DiapStash_Plugin
                 BaseAddress = new Uri("https://api.diapstash.com/"),
                 Timeout = TimeSpan.FromSeconds(8)
             };
+            LoadCacheFromDisk();
         }
 
         public void ConfigureAuthentication(string token, string clientId)
@@ -102,6 +170,71 @@ namespace DiapStash_Plugin
             }
 
             return request;
+        }
+
+        public async Task<bool> RefreshAccessTokenAsync()
+        {
+            string clientId = DiapStashCredentials.ClientId;
+            string clientSecret = DiapStashCredentials.ClientSecret;
+            string refreshToken = "";
+            string ttsUrl = "ws://localhost:8889/";
+            string template = "";
+
+            try
+            {
+                string credentialsPath = Path.Combine(AppDataFolder, "credentials.json");
+                if (File.Exists(credentialsPath))
+                {
+                    string rawJson = File.ReadAllText(credentialsPath);
+                    using var doc = JsonDocument.Parse(rawJson);
+                    var root = doc.RootElement;
+                    refreshToken = root.TryGetProperty("RefreshToken", out var refProp) ? refProp.GetString() ?? "" : "";
+                    ttsUrl = root.TryGetProperty("TtsUrl", out var urlProp) ? urlProp.GetString() ?? ttsUrl : ttsUrl;
+                    template = root.TryGetProperty("CustomTtsTemplate", out var tmpProp) ? tmpProp.GetString() ?? template : template;
+                }
+            }
+            catch { return false; }
+
+            if (string.IsNullOrEmpty(clientId) || string.IsNullOrEmpty(clientSecret) || string.IsNullOrEmpty(refreshToken)) return false;
+
+            try
+            {
+                var bodyParams = new Dictionary<string, string>
+                {
+                    { "grant_type", "refresh_token" },
+                    { "refresh_token", refreshToken }
+                };
+
+                using var request = new HttpRequestMessage(HttpMethod.Post, "https://account.diapstash.com/oidc/token");
+                request.Content = new FormUrlEncodedContent(bodyParams);
+                request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+
+                string rawCredentials = $"{clientId}:{clientSecret}";
+                string base64Credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes(rawCredentials));
+                request.Headers.Authorization = new AuthenticationHeaderValue("Basic", base64Credentials);
+
+                using var response = await _httpClient.SendAsync(request);
+                if (response.IsSuccessStatusCode)
+                {
+                    string rawJson = await response.Content.ReadAsStringAsync();
+                    using var doc = JsonDocument.Parse(rawJson);
+                    string newAccessToken = doc.RootElement.GetProperty("access_token").GetString() ?? "";
+                    string newRefreshToken = doc.RootElement.TryGetProperty("refresh_token", out var rfProp) ? rfProp.GetString() ?? "" : "";
+                    if (!string.IsNullOrEmpty(newRefreshToken)) refreshToken = newRefreshToken;
+
+                    ConfigureAuthentication(newAccessToken, clientId);
+
+                    try
+                    {
+                        var updatedBackup = new { AccessToken = newAccessToken, RefreshToken = refreshToken, TtsUrl = ttsUrl, CustomTtsTemplate = template };
+                        File.WriteAllText(Path.Combine(AppDataFolder, "credentials.json"), JsonSerializer.Serialize(updatedBackup, new JsonSerializerOptions { WriteIndented = true }));
+                    }
+                    catch { }
+                    return true;
+                }
+            }
+            catch { }
+            return false;
         }
 
         public async Task<string> GetRawEndpointDataAsync(string endpointUrl)
@@ -145,7 +278,9 @@ namespace DiapStash_Plugin
             var allStockItems = new List<DiaperStockItem>();
             if (string.IsNullOrEmpty(_accessToken) || string.IsNullOrEmpty(_clientId)) return allStockItems;
 
-            if (!forceRefresh && _cachedStockItems != null && DateTime.Now < _stockItemsCacheExpiration)
+            bool cacheValid = _cachedStockItems != null && (DateTime.Now - _lastStockItemsFetchTime).TotalHours < 1;
+
+            if (cacheValid && (!forceRefresh || (DateTime.Now - _lastStockItemsFetchTime).TotalHours < 1))
             {
                 return _cachedStockItems;
             }
@@ -161,7 +296,9 @@ namespace DiapStash_Plugin
                 allStockItems.AddRange(reusablesTask.Result);
 
                 _cachedStockItems = allStockItems;
-                _stockItemsCacheExpiration = DateTime.Now.AddMinutes(1);
+                _lastStockItemsFetchTime = DateTime.Now;
+                SaveCacheToDisk();
+                return _cachedStockItems;
             }
             catch { }
             return allStockItems;
@@ -218,7 +355,7 @@ namespace DiapStash_Plugin
                                     Name = cleanName,
                                     Size = size,
                                     Left = itemsLeft,
-                                    ImageUrl = metadata.ImageUrl,
+                                    ImageUrl = string.IsNullOrEmpty(metadata.ImageUrl) ? "https://diapstash.com/diapstash/assets/icons/Stack.png" : metadata.ImageUrl,
                                     DiaperTypeId = diaperTypeId,
                                     VariantId = variantId
                                 };
@@ -230,7 +367,7 @@ namespace DiapStash_Plugin
                                     Name = $"Product #{diaperTypeId}",
                                     Size = size,
                                     Left = itemsLeft,
-                                    ImageUrl = "",
+                                    ImageUrl = "https://diapstash.com/diapstash/assets/icons/Stack.png",
                                     DiaperTypeId = diaperTypeId,
                                     VariantId = variantId
                                 };
@@ -265,10 +402,7 @@ namespace DiapStash_Plugin
         private string SanitizeImageUrl(string url)
         {
             if (string.IsNullOrEmpty(url)) return "";
-            if (url.Contains("format=webp", StringComparison.OrdinalIgnoreCase))
-            {
-                url = url.Replace("format=webp", "format=png", StringComparison.OrdinalIgnoreCase);
-            }
+            url = System.Text.RegularExpressions.Regex.Replace(url, @"format=[a-zA-Z0-9]+", "format=png", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
             return url;
         }
 
@@ -314,9 +448,10 @@ namespace DiapStash_Plugin
 
             if (typeId <= 0) return (fallbackName, "");
 
+            string cacheKey = $"{typeId}_{targetVariantId}";
             lock (_typeMetadataCache)
             {
-                if (_typeMetadataCache.ContainsKey(typeId)) return _typeMetadataCache[typeId];
+                if (_typeMetadataCache.ContainsKey(cacheKey)) return _typeMetadataCache[cacheKey];
             }
 
             try
@@ -375,11 +510,12 @@ namespace DiapStash_Plugin
 
                 if (string.IsNullOrEmpty(remoteCdnImageUrl))
                 {
-                    remoteCdnImageUrl = "https://diapstash.com/diapstash/assets/icons/Diaper.svg";
+                    remoteCdnImageUrl = "";
                 }
 
                 var resolvedMetadata = (fullProductName, remoteCdnImageUrl);
-                lock (_typeMetadataCache) { _typeMetadataCache[typeId] = resolvedMetadata; }
+                lock (_typeMetadataCache) { _typeMetadataCache[cacheKey] = resolvedMetadata; }
+                SaveCacheToDisk();
                 return resolvedMetadata;
             }
             catch (IOException ioEx)
@@ -397,13 +533,28 @@ namespace DiapStash_Plugin
 
         public DiapStashChangeState? GetCachedChangeState() => _cachedChangeState;
 
-        public async Task<DiapStashChangeState?> FetchLatestChangeStateObjectAsync(bool forceRefresh = false)
+        public async Task<DiapStashChangeState?> FetchLatestChangeStateObjectAsync(bool forceRefresh = false, bool isJakeyTTS = false)
         {
             if (string.IsNullOrEmpty(_accessToken) || string.IsNullOrEmpty(_clientId)) return null;
 
-            if (!forceRefresh && _cachedChangeState != null && DateTime.Now < _changeStateCacheExpiration)
+            bool isCacheValid = _cachedChangeState != null;
+            
+            if (isCacheValid)
             {
-                return _cachedChangeState;
+                if (isJakeyTTS && (DateTime.Now - _lastChangeStateFetchTime).TotalMinutes < 3)
+                {
+                    return _cachedChangeState;
+                }
+                
+                if (forceRefresh && (DateTime.Now - _lastChangeStateFetchTime).TotalMinutes < 1)
+                {
+                    return _cachedChangeState;
+                }
+
+                if (!forceRefresh && !isJakeyTTS && (DateTime.Now - _lastChangeStateFetchTime).TotalMinutes < 1)
+                {
+                    return _cachedChangeState;
+                }
             }
 
             try
@@ -502,7 +653,7 @@ namespace DiapStash_Plugin
                 }
 
                 _cachedChangeState = stateResult;
-                _changeStateCacheExpiration = DateTime.Now.AddMinutes(1);
+                _lastChangeStateFetchTime = DateTime.Now;
 
                 return stateResult;
             }
@@ -522,7 +673,7 @@ namespace DiapStash_Plugin
             string clientSecret = settings.Values["SavedClientSecret"]?.ToString() ?? "";
             string refreshToken = settings.Values["SavedRefreshToken"]?.ToString() ?? "";
 
-            string credentialsPath = Path.Combine(AppContext.BaseDirectory, "credentials.json");
+            string credentialsPath = Path.Combine(DiapStashClient.AppDataFolder, "credentials.json");
             if (string.IsNullOrEmpty(refreshToken) && File.Exists(credentialsPath))
             {
                 try
