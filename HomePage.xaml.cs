@@ -28,7 +28,7 @@ namespace DiapStash_Plugin
         {
             try
             {
-                string currentVersion = "2.0.1.0";
+                string currentVersion = "2.2.0.0";
                 string versionFile = Path.Combine(DiapStashClient.AppDataFolder, "last_version.txt");
                 string lastSeen = File.Exists(versionFile) ? File.ReadAllText(versionFile).Trim() : "";
                 
@@ -50,7 +50,7 @@ namespace DiapStash_Plugin
         {
             var dialog = new ContentDialog
             {
-                Title = "DiapStash Plugin - What's New v2.0.1",
+                Title = "DiapStash Plugin - What's New v2.2",
                 Content = new ScrollViewer
                 {
                     Content = new TextBlock

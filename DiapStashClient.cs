@@ -668,20 +668,19 @@ namespace DiapStash_Plugin
 
         public async Task<bool> RefreshAccessTokenHeadlessAsync()
         {
-            var settings = Windows.Storage.ApplicationData.Current.LocalSettings;
-            string clientId = settings.Values["SavedClientId"]?.ToString() ?? "";
-            string clientSecret = settings.Values["SavedClientSecret"]?.ToString() ?? "";
-            string refreshToken = settings.Values["SavedRefreshToken"]?.ToString() ?? "";
+            string clientId = "";
+            string clientSecret = "";
+            string refreshToken = "";
 
             string credentialsPath = Path.Combine(DiapStashClient.AppDataFolder, "credentials.json");
-            if (string.IsNullOrEmpty(refreshToken) && File.Exists(credentialsPath))
+            if (File.Exists(credentialsPath))
             {
                 try
                 {
                     string rawCreds = File.ReadAllText(credentialsPath);
                     using var doc = JsonDocument.Parse(rawCreds);
                     var root = doc.RootElement;
-                    clientId = root.GetProperty("ClientId").GetString() ?? clientId;
+                    clientId = root.GetProperty("ClientId").GetString() ?? "";
                     refreshToken = root.TryGetProperty("RefreshToken", out var rProp) ? rProp.GetString() ?? "" : "";
                     clientSecret = root.TryGetProperty("ClientSecret", out var sProp) ? sProp.GetString() ?? "" : "";
                 }
@@ -716,12 +715,8 @@ namespace DiapStash_Plugin
                     string newAccessToken = doc.RootElement.GetProperty("access_token").GetString() ?? "";
                     string newRefreshToken = doc.RootElement.TryGetProperty("refresh_token", out var rfProp) ? rfProp.GetString() ?? "" : "";
 
-                    settings.Values["SavedStashToken"] = newAccessToken;
                     if (!string.IsNullOrEmpty(newRefreshToken))
-                    {
-                        settings.Values["SavedRefreshToken"] = newRefreshToken;
                         refreshToken = newRefreshToken;
-                    }
 
                     ConfigureAuthentication(newAccessToken, clientId);
 
