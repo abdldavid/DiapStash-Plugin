@@ -62,14 +62,21 @@ namespace DiapStash_Plugin
                     {
                         try
                         {
-                            string path = ctx.Request.QueryString["path"] ?? "";
-                            if (!string.IsNullOrEmpty(path) && System.IO.File.Exists(path))
+                            string encodedPath = ctx.Request.QueryString["path"] ?? "";
+                            if (!string.IsNullOrEmpty(encodedPath))
                             {
-                                byte[] img = System.IO.File.ReadAllBytes(path);
-                                string ext = System.IO.Path.GetExtension(path).ToLower();
-                                resp.ContentType = ext == ".png" ? "image/png" : (ext == ".gif" ? "image/gif" : (ext == ".webp" ? "image/webp" : "image/jpeg"));
-                                resp.ContentLength64 = img.Length;
-                                await resp.OutputStream.WriteAsync(img, 0, img.Length);
+                                string path = "";
+                                try { path = System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(encodedPath)); } catch { }
+                                
+                                if (!string.IsNullOrEmpty(path) && System.IO.File.Exists(path))
+                                {
+                                    byte[] img = System.IO.File.ReadAllBytes(path);
+                                    string ext = System.IO.Path.GetExtension(path).ToLower();
+                                    resp.ContentType = ext == ".png" ? "image/png" : (ext == ".gif" ? "image/gif" : (ext == ".webp" ? "image/webp" : "image/jpeg"));
+                                    resp.ContentLength64 = img.Length;
+                                    await resp.OutputStream.WriteAsync(img, 0, img.Length);
+                                }
+                                else { resp.StatusCode = 404; }
                             }
                             else { resp.StatusCode = 404; }
                         }
@@ -94,7 +101,8 @@ namespace DiapStash_Plugin
                                 }
                                 if (!string.IsNullOrEmpty(state.ImageUrl) && state.ImageUrl.Contains(":\\"))
                                 {
-                                    LiveImageUrl = $"http://localhost:8889/overlay/local?path={System.Net.WebUtility.UrlEncode(state.ImageUrl)}";
+                                    string encodedPath = Uri.EscapeDataString(Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(state.ImageUrl)));
+                                    LiveImageUrl = $"http://localhost:8890/overlay/local?path={encodedPath}&v={DateTime.Now.Ticks}";
                                 }
                                 else
                                 {
@@ -303,7 +311,7 @@ namespace DiapStash_Plugin
                                     dom.style.background = 'rgba(0,0,0,0.05)';
                                     
                                     if (src) {
-                                        dom.style.backgroundImage = 'url(' + src + ')';
+                                        dom.style.backgroundImage = 'url(""' + src + '"")';
                                         dom.style.backgroundSize = el.stretch === 'Uniform' ? 'contain' : (el.stretch === 'Fill' ? '100% 100%' : 'cover');
                                         dom.style.backgroundPosition = 'center';
                                         dom.style.backgroundRepeat = 'no-repeat';

@@ -1139,8 +1139,22 @@ namespace DiapStash_Plugin
             var file = await picker.PickSingleFileAsync();
             if (file != null)
             {
-                string encodedPath = Uri.EscapeDataString(file.Path);
-                ImageCustomUrlBox.Text = $"http://localhost:8890/overlay/local?path={encodedPath}";
+                string imagesDir = System.IO.Path.Combine(DiapStashClient.AppDataFolder, "images");
+                if (!System.IO.Directory.Exists(imagesDir)) System.IO.Directory.CreateDirectory(imagesDir);
+
+                string destPath = System.IO.Path.Combine(imagesDir, file.Name);
+                
+                try
+                {
+                    if (file.Path != destPath)
+                    {
+                        System.IO.File.Copy(file.Path, destPath, true);
+                    }
+                }
+                catch { }
+
+                string encodedPath = Uri.EscapeDataString(Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(destPath)));
+                ImageCustomUrlBox.Text = $"http://localhost:8890/overlay/local?path={encodedPath}&v={DateTime.Now.Ticks}";
             }
         }
 

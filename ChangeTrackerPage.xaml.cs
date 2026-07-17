@@ -17,7 +17,7 @@ namespace DiapStash_Plugin
 
             // FIXED: Replaced Windows.Storage.ApplicationData container lookups with a raw filesystem fallback.
             // This stops WinRT runtime crashes inside unpackaged desktop environments.
-            string defaultTemplate = "Current diaper status is {diapstash_status}. Product in use: {diapstash_product}, size {diapstash_size}. [if:diapstash_leak==YES]Warning: Leak detected. [/if]Wetness level: {diapstash_wetness}, mess level: {diapstash_messy}. Elapsed runtime: {diapstash_elapsed}.";
+            string defaultTemplate = "Current diaper status is {diapstash_status}. Product in use: {diapstash_product}, size {diapstash_size}. Wetness level: {diapstash_wetness}, mess level: {diapstash_messy}. Elapsed runtime: {diapstash_elapsed}.";
             string currentTemplate = defaultTemplate;
 
             try
@@ -390,7 +390,7 @@ namespace DiapStash_Plugin
 
         private void RestoreDefaultTemplate_Click(object sender, RoutedEventArgs e)
         {
-            CustomTtsTemplateBox.Text = "Currently tracking: [diapstash_product_name] (Size [diapstash_size]). [if:diapstash_is_active==YES] The session has been active for [diapstash_elapsed].[if:diapstash_leak==YES] Warning, a leak has been detected![/if][/if][if:diapstash_is_active==NO] The session was completed. It lasted for [diapstash_elapsed].[/if]";
+            CustomTtsTemplateBox.Text = "Currently tracking: {diapstash_product} (Size {diapstash_size}). Current status: {diapstash_status}. Elapsed: {diapstash_elapsed}.";
             SaveTtsTemplate_Click(null, null);
             MainWindow.Instance?.Log("♻ Restored default core response template.");
         }
@@ -406,9 +406,9 @@ namespace DiapStash_Plugin
         private void RestoreDefaultRules_Click(object sender, RoutedEventArgs e)
         {
             JakeyTtsClient.Instance.ComplexRuleCards.Clear();
-            JakeyTtsClient.Instance.ComplexRuleCards.Add(CreateDefaultRule("Active_Session_Greeting", "IF", "Status", "Active", "A new diaper session has started. Tracked item: [diapstash_product_name]."));
+            JakeyTtsClient.Instance.ComplexRuleCards.Add(CreateDefaultRule("Active_Session_Greeting", "IF", "Status", "Active", "A new diaper session has started. Tracked item: {diapstash_product}."));
             JakeyTtsClient.Instance.ComplexRuleCards.Add(CreateDefaultRule("Leak_Detected_Warning", "IF", "Leak", "YES", "Alert! A leak has been detected in the current diaper."));
-            JakeyTtsClient.Instance.ComplexRuleCards.Add(CreateDefaultRule("Session_Ended_Summary", "IF", "Status", "Completed", "The diaper session has ended. Total duration was [diapstash_elapsed]."));
+            JakeyTtsClient.Instance.ComplexRuleCards.Add(CreateDefaultRule("Session_Ended_Summary", "IF", "Status", "Completed", "The diaper session has ended. Total duration was {diapstash_elapsed}."));
 
             RulesListView.ItemsSource = JakeyTtsClient.Instance.ComplexRuleCards;
             JakeyTtsClient.Instance.SaveRulesToSettings();
