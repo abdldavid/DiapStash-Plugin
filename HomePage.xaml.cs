@@ -28,7 +28,7 @@ namespace DiapStash_Plugin
         {
             try
             {
-                string currentVersion = "2.3.0.0";
+                string currentVersion = "2.3.1.0";
                 string versionFile = Path.Combine(DiapStashClient.AppDataFolder, "last_version.txt");
                 string lastSeen = File.Exists(versionFile) ? File.ReadAllText(versionFile).Trim() : "";
                 
@@ -52,19 +52,19 @@ namespace DiapStash_Plugin
             
             var currentVersionText = new TextBlock
             {
-                Text = "🚀 Major Updates:\n" +
+                Text = "🛠 Bug Fixes (v2.3.1):\n" +
+                       "• Fixed an OBS proxy server issue where custom and local overlay images with spaces would not render.\n" +
+                       "• Custom images selected for the canvas preview are now securely copied and granted permissions to bypass WinRT file access restrictions.\n" +
+                       "• Corrected the syntax for TTS default template variables (using {} instead of []) and removed unsupported [if:] tags from the core base response template.\n\n" +
+                       "🚀 Major Updates (v2.3):\n" +
                        "• Optimization: Implemented a local product catalog database and local image caching to heavily reduce external API requests and save data quota.\n" +
                        "• Optimization: Catalog updates are now strictly limited to once every 24 hours, and diaper status checks poll every 15 minutes to preserve network resources.\n" +
                        "• Settings: Added a 'Real-Time Updates on JakeyTTS Trigger' toggle to optionally bypass the 15-minute polling limit down to 1-minute for instant TTS feedback.\n" +
                        "• Optimization: Elapsed time durations are now intelligently calculated locally to reduce redundant server polls.\n" +
                        "• Action Blocks: Added default templates and a 'Restore Defaults' button for quick rule building.\n" +
                        "• Action Blocks: Added a 'Copy Tag' button to advance action blocks to easily port them into JakeyTTS.\n" +
-                       "• Canvas Editor: Added a 'Show Seconds' toggle option for the Elapsed Time widget.\n\n" +
-                       "🛠 Bug Fixes:\n" +
-                       "• Fixed a visual flickering issue on the live canvas preview when streaming real-time elapsed durations.\n" +
-                       "• Fixed diaper product images failing to load on the Change Tracker interface when served from the local hard drive cache.\n" +
-                       "• Fixed main window and telemetry console title bars not matching your system's dark/light mode preference upon application startup.\n" +
-                       "• Translated all source code comments and logic documentation to English.",
+                       "• Canvas Editor: Added a 'Show Seconds' toggle option for the Elapsed Time widget.\n" +
+                       "• Bug Fix: Fixed visual flickering on the live canvas preview and fixed telemetry console title bar theme mismatch.",
                 TextWrapping = TextWrapping.Wrap
             };
             stack.Children.Add(currentVersionText);
@@ -90,7 +90,7 @@ namespace DiapStash_Plugin
 
             var dialog = new ContentDialog
             {
-                Title = "DiapStash Plugin - What's New v2.3",
+                Title = "DiapStash Plugin - What's New v2.3.1",
                 Content = new ScrollViewer { Content = stack },
                 CloseButtonText = "Awesome!"
             };
