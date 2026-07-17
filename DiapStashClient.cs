@@ -21,6 +21,15 @@ namespace DiapStash_Plugin
         public string VariantId { get; set; } = string.Empty;
     }
 
+    public class PermanentCatalogEntry
+    {
+        public string VariantId { get; set; } = string.Empty;
+        public int TypeId { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string Size { get; set; } = string.Empty;
+        public string LocalImagePath { get; set; } = string.Empty;
+    }
+
     public class DiapStashChangeState
     {
         public int Id { get; set; }
@@ -74,6 +83,7 @@ namespace DiapStash_Plugin
         private DateTime _lastStockItemsFetchTime = DateTime.MinValue;
 
         private Dictionary<string, (string FullName, string ImageUrl)> _typeMetadataCache = new();
+        private Dictionary<string, PermanentCatalogEntry> _permanentCatalogDb = new();
 
         public class DiskCacheState
         {
@@ -130,6 +140,52 @@ namespace DiapStash_Plugin
             catch { }
         }
 
+        private void SavePermanentCatalog()
+        {
+            try
+            {
+                string json = JsonSerializer.Serialize(_permanentCatalogDb, new JsonSerializerOptions { WriteIndented = true });
+                File.WriteAllText(Path.Combine(AppDataFolder, "local_catalog_db.json"), json);
+            }
+            catch { }
+        }
+
+        private void LoadPermanentCatalog()
+        {
+            try
+            {
+                string path = Path.Combine(AppDataFolder, "local_catalog_db.json");
+                if (File.Exists(path))
+                {
+                    string json = File.ReadAllText(path);
+                    var db = JsonSerializer.Deserialize<Dictionary<string, PermanentCatalogEntry>>(json);
+                    if (db != null) _permanentCatalogDb = db;
+                }
+            }
+            catch { }
+        }
+
+        private async Task<string> EnsureImageIsCachedAsync(string variantId, string remoteUrl)
+        {
+            if (string.IsNullOrEmpty(remoteUrl)) return "";
+            string imagesDir = Path.Combine(AppDataFolder, "images");
+            if (!Directory.Exists(imagesDir)) Directory.CreateDirectory(imagesDir);
+            
+            string ext = Path.GetExtension(remoteUrl.Split('?')[0]);
+            if (string.IsNullOrEmpty(ext)) ext = ".png";
+            string localPath = Path.Combine(imagesDir, $"{variantId}{ext}");
+
+            if (File.Exists(localPath)) return localPath;
+
+            try
+            {
+                var imageBytes = await _httpClient.GetByteArrayAsync(remoteUrl);
+                File.WriteAllBytes(localPath, imageBytes);
+                return localPath;
+            }
+            catch { return remoteUrl; }
+        }
+
         private DiapStashClient()
         {
             var handler = new HttpClientHandler
@@ -145,6 +201,7 @@ namespace DiapStash_Plugin
                 Timeout = TimeSpan.FromSeconds(8)
             };
             LoadCacheFromDisk();
+            LoadPermanentCatalog();
         }
 
         public void ConfigureAuthentication(string token, string clientId)
@@ -278,9 +335,9 @@ namespace DiapStash_Plugin
             var allStockItems = new List<DiaperStockItem>();
             if (string.IsNullOrEmpty(_accessToken) || string.IsNullOrEmpty(_clientId)) return allStockItems;
 
-            bool cacheValid = _cachedStockItems != null && (DateTime.Now - _lastStockItemsFetchTime).TotalHours < 1;
+            bool cacheValid = _cachedStockItems != null && (DateTime.Now - _lastStockItemsFetchTime).TotalHours < 24;
 
-            if (cacheValid && (!forceRefresh || (DateTime.Now - _lastStockItemsFetchTime).TotalHours < 1))
+            if (cacheValid && !forceRefresh)
             {
                 return _cachedStockItems;
             }
@@ -294,6 +351,25 @@ namespace DiapStash_Plugin
 
                 allStockItems.AddRange(disposablesTask.Result);
                 allStockItems.AddRange(reusablesTask.Result);
+
+                bool catalogModified = false;
+                foreach (var item in allStockItems)
+                {
+                    if (!_permanentCatalogDb.ContainsKey(item.VariantId))
+                    {
+                        string localImg = await EnsureImageIsCachedAsync(item.VariantId, item.ImageUrl);
+                        _permanentCatalogDb[item.VariantId] = new PermanentCatalogEntry
+                        {
+                            VariantId = item.VariantId,
+                            TypeId = item.DiaperTypeId,
+                            Name = item.Name,
+                            Size = item.Size,
+                            LocalImagePath = localImg
+                        };
+                        catalogModified = true;
+                    }
+                }
+                if (catalogModified) SavePermanentCatalog();
 
                 _cachedStockItems = allStockItems;
                 _lastStockItemsFetchTime = DateTime.Now;
@@ -539,22 +615,27 @@ namespace DiapStash_Plugin
 
             bool isCacheValid = _cachedChangeState != null;
             
-            if (isCacheValid)
+            bool forceRealTimeTTS = false;
+            try
             {
-                if (isJakeyTTS && (DateTime.Now - _lastChangeStateFetchTime).TotalMinutes < 3)
+                string credentialsPath = Path.Combine(AppDataFolder, "credentials.json");
+                if (File.Exists(credentialsPath))
                 {
-                    return _cachedChangeState;
+                    string rawJson = File.ReadAllText(credentialsPath);
+                    using var doc = System.Text.Json.JsonDocument.Parse(rawJson);
+                    if (doc.RootElement.TryGetProperty("ForceRealTimeTTSUpdates", out var rtuProp))
+                    {
+                        forceRealTimeTTS = rtuProp.GetBoolean();
+                    }
                 }
-                
-                if (forceRefresh && (DateTime.Now - _lastChangeStateFetchTime).TotalMinutes < 1)
-                {
-                    return _cachedChangeState;
-                }
+            }
+            catch { }
 
-                if (!forceRefresh && !isJakeyTTS && (DateTime.Now - _lastChangeStateFetchTime).TotalMinutes < 1)
-                {
-                    return _cachedChangeState;
-                }
+            double minutesWait = (isJakeyTTS && forceRealTimeTTS) ? 1 : 15;
+
+            if (isCacheValid && !forceRefresh && (DateTime.Now - _lastChangeStateFetchTime).TotalMinutes < minutesWait)
+            {
+                return _cachedChangeState;
             }
 
             try
@@ -647,9 +728,29 @@ namespace DiapStash_Plugin
                     if (innerDiaper.TryGetProperty("variantId", out var varProp)) stateResult.VariantId = varProp.GetString() ?? string.Empty;
                     if (innerDiaper.TryGetProperty("typeId", out var typeProp)) stateResult.TypeId = typeProp.GetInt32();
 
-                    var metadata = await FetchDiaperTypeMetadataAsync(stateResult.TypeId, stateResult.VariantId);
-                    stateResult.ProductName = metadata.FullName;
-                    stateResult.ImageUrl = metadata.ImageUrl;
+                    if (_permanentCatalogDb.TryGetValue(stateResult.VariantId, out var catalogEntry))
+                    {
+                        stateResult.ProductName = catalogEntry.Name;
+                        stateResult.ImageUrl = catalogEntry.LocalImagePath;
+                        if (!string.IsNullOrEmpty(catalogEntry.Size)) stateResult.Size = catalogEntry.Size;
+                    }
+                    else
+                    {
+                        var metadata = await FetchDiaperTypeMetadataAsync(stateResult.TypeId, stateResult.VariantId);
+                        stateResult.ProductName = metadata.FullName;
+                        
+                        string localImg = await EnsureImageIsCachedAsync(stateResult.VariantId, metadata.ImageUrl);
+                        stateResult.ImageUrl = localImg;
+
+                        _permanentCatalogDb[stateResult.VariantId] = new PermanentCatalogEntry
+                        {
+                            VariantId = stateResult.VariantId,
+                            TypeId = stateResult.TypeId,
+                            Name = stateResult.ProductName,
+                            LocalImagePath = localImg
+                        };
+                        SavePermanentCatalog();
+                    }
                 }
 
                 _cachedChangeState = stateResult;
@@ -732,7 +833,7 @@ namespace DiapStash_Plugin
                     return true;
                 }
             }
-            // FIXED: Control preventivo para el pool de actualización headless en arranques offline
+            // FIXED: Added a preventive control for the headless update pool during offline boots
             catch (HttpRequestException ex) when (ex.InnerException is SocketException sex && sex.SocketErrorCode == SocketError.ConnectionRefused)
             {
                 System.Diagnostics.Debug.WriteLine("⚠️ [DiapStashClient] Headless refresh bypassed due to connection refusal.");

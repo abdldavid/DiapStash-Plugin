@@ -14,7 +14,7 @@ namespace DiapStash_Plugin
         private HttpListener? _listener;
         private bool _isRunning = false;
 
-        // Propiedades de diseño
+        // Design properties
         public double CardW { get; set; } = 800; public double CardH { get; set; } = 200;
         public int TransitionType { get; set; } = 0; public double TransitionDurationMs { get; set; } = 400;
         public double StayOnScreenDurationMs { get; set; } = 5000;
@@ -29,6 +29,7 @@ namespace DiapStash_Plugin
         public int LiveWetPercentage { get; set; } = 50;
         public int LiveMessPercentage { get; set; } = 20;
         public string LiveStatusMessage { get; set; } = "TELEMETRY";
+        public string LiveElapsed { get; set; } = "00:00:00";
         public string LiveImageUrl { get; set; } = "";
 
         // Dynamic Elements
@@ -86,7 +87,19 @@ namespace DiapStash_Plugin
                                 LiveWetPercentage = state.WetnessPercentage;
                                 LiveMessPercentage = state.MessyPercentage;
                                 LiveStatusMessage = state.IsActiveSession ? "Active" : "Completed";
-                                LiveImageUrl = state.ImageUrl ?? "";
+                                if (state.StartTime != DateTime.MinValue)
+                                {
+                                    var diff = state.IsActiveSession ? (DateTime.Now - state.StartTime.ToLocalTime()) : (state.EndTime.Value.ToLocalTime() - state.StartTime.ToLocalTime());
+                                    LiveElapsed = $"{(int)diff.TotalHours:D2}:{diff.Minutes:D2}:{diff.Seconds:D2}";
+                                }
+                                if (!string.IsNullOrEmpty(state.ImageUrl) && state.ImageUrl.Contains(":\\"))
+                                {
+                                    LiveImageUrl = $"http://localhost:8889/overlay/local?path={System.Net.WebUtility.UrlEncode(state.ImageUrl)}";
+                                }
+                                else
+                                {
+                                    LiveImageUrl = state.ImageUrl ?? "";
+                                }
                             }
                         }
                         catch { }
@@ -106,6 +119,7 @@ namespace DiapStash_Plugin
                             liveWet = LiveWetPercentage,
                             liveMess = LiveMessPercentage,
                             liveStatus = LiveStatusMessage,
+                            liveElapsed = LiveElapsed,
                             liveImage = LiveImageUrl,
                             
                             elements = Elements,
@@ -184,7 +198,7 @@ namespace DiapStash_Plugin
                             }
                         }
                         
-                        c.innerHTML = ''; // Limpiar canvas
+                        c.innerHTML = ''; // Clears the canvas
                         if (d.elements) {
                             function buildElement(el, parentDom) {
                                 const dom = document.createElement('div');
@@ -210,6 +224,10 @@ namespace DiapStash_Plugin
                                     else if (ds === 'Wetness') txt = d.liveWet + '%';
                                     else if (ds === 'Messiness') txt = d.liveMess + '%';
                                     else if (ds === 'LiveStatus') txt = d.liveStatus;
+                                    else if (ds === 'ElapsedTime') {
+                                        let showSec = el.showSeconds !== undefined ? el.showSeconds : (el.ShowSeconds !== undefined ? el.ShowSeconds : true);
+                                        txt = showSec ? d.liveElapsed : (d.liveElapsed && d.liveElapsed.length >= 5 ? d.liveElapsed.substring(0, 5) : d.liveElapsed);
+                                    }
                                     
                                     dom.style.fontFamily = el.fontFamily || el.FontFamily;
                                     dom.style.fontSize = (el.fontSize !== undefined ? el.fontSize : el.FontSize) + 'px';

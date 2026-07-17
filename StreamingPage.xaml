@@ -76,6 +76,27 @@
                         <TextBlock Text="Reset" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
+                <Border Width="1" Background="{ThemeResource SurfaceStrokeColorDefaultBrush}" Margin="5,5"/>
+                <Button Click="ExportBtn_Click" Padding="15,8" ToolTipService.ToolTip="Export Design">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon Glyph="&#xE78B;" FontSize="14"/>
+                        <TextBlock Text="Export" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+                <Button Click="ImportBtn_Click" Padding="15,8" ToolTipService.ToolTip="Import Design">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon Glyph="&#xE8E5;" FontSize="14"/>
+                        <TextBlock Text="Import" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+                <Border Width="1" Background="{ThemeResource SurfaceStrokeColorDefaultBrush}" Margin="5,5"/>
+                <Button Click="MergeDefaultsBtn_Click" Padding="15,8" ToolTipService.ToolTip="Merge New Default Widgets">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon Glyph="&#xE895;" FontSize="14"/>
+                        <TextBlock Text="Merge New Widgets" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+                <Border Width="1" Background="{ThemeResource SurfaceStrokeColorDefaultBrush}" Margin="5,5"/>
                 <Button Content="🎬 Canvas Preview" Click="PreviewCanvasBtn_Click" Padding="15,8"/>
                 <Button Content="🚀 Send to OBS" Click="LaunchObsBtn_Click" Style="{StaticResource AccentButtonStyle}" Padding="15,8"/>
             </StackPanel>
@@ -338,8 +359,10 @@
                             <ComboBoxItem Content="Wetness"/>
                             <ComboBoxItem Content="Messiness"/>
                             <ComboBoxItem Content="LiveStatus"/>
+                            <ComboBoxItem Content="ElapsedTime"/>
                         </ComboBox>
                         <TextBox x:Name="TextCustomBox" Header="Custom Text" TextChanged="ElementProp_Changed"/>
+                        <ToggleSwitch x:Name="TextShowSecondsToggle" Header="Show Seconds" Toggled="ElementProp_Changed"/>
                         
                         <ComboBox x:Name="TextFontFamilyCombo" Header="Font Family" SelectionChanged="ElementProp_Changed" HorizontalAlignment="Stretch">
                             <ComboBoxItem Content="Outfit"/>

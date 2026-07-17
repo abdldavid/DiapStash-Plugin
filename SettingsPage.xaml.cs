@@ -38,6 +38,10 @@ namespace DiapStash_Plugin
                     var root = doc.RootElement;
                     token = root.TryGetProperty("AccessToken", out var tokenProp) ? tokenProp.GetString() ?? "" : "";
                     ttsUrl = root.TryGetProperty("TtsUrl", out var urlProp) ? urlProp.GetString() ?? ttsUrl : ttsUrl;
+                    if (root.TryGetProperty("ForceRealTimeTTSUpdates", out var rtuProp))
+                        RealTimeTtsToggle.IsOn = rtuProp.GetBoolean();
+                    else
+                        RealTimeTtsToggle.IsOn = false;
                 }
             }
             catch { }
@@ -52,7 +56,6 @@ namespace DiapStash_Plugin
                 if (fe.RequestedTheme == ElementTheme.Light) ThemeComboBox.SelectedIndex = 1;
                 else if (fe.RequestedTheme == ElementTheme.Dark) ThemeComboBox.SelectedIndex = 2;
             }
-
         }
 
         private void ThemeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -65,6 +68,40 @@ namespace DiapStash_Plugin
                 
                 MainWindow.Instance?.SetTheme(theme);
             }
+        }
+
+        private void RealTimeTtsToggle_Toggled(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                string credentialsPath = Path.Combine(DiapStashClient.AppDataFolder, "credentials.json");
+                string clientId = "", token = "", clientSecret = "", refreshToken = "", customTemplate = "", ttsUrl = "ws://localhost:8889/";
+
+                if (File.Exists(credentialsPath))
+                {
+                    string rawJson = File.ReadAllText(credentialsPath);
+                    using var doc = JsonDocument.Parse(rawJson);
+                    var root = doc.RootElement;
+                    clientId = root.TryGetProperty("ClientId", out var ci) ? ci.GetString() ?? "" : "";
+                    clientSecret = root.TryGetProperty("ClientSecret", out var cs) ? cs.GetString() ?? "" : "";
+                    token = root.TryGetProperty("AccessToken", out var at) ? at.GetString() ?? "" : "";
+                    refreshToken = root.TryGetProperty("RefreshToken", out var rt) ? rt.GetString() ?? "" : "";
+                    customTemplate = root.TryGetProperty("CustomTtsTemplate", out var ct) ? ct.GetString() ?? "" : "";
+                    ttsUrl = root.TryGetProperty("TtsUrl", out var u) ? u.GetString() ?? ttsUrl : ttsUrl;
+                }
+
+                var updatedBackup = new
+                {
+                    AccessToken = token,
+                    RefreshToken = refreshToken,
+                    TtsUrl = ttsUrl,
+                    CustomTtsTemplate = customTemplate,
+                    ForceRealTimeTTSUpdates = RealTimeTtsToggle.IsOn
+                };
+
+                File.WriteAllText(credentialsPath, JsonSerializer.Serialize(updatedBackup, new JsonSerializerOptions { WriteIndented = true }));
+            }
+            catch { }
         }
 
         private async void ConnectTts_Click(object sender, RoutedEventArgs e)
@@ -115,7 +152,8 @@ namespace DiapStash_Plugin
                     AccessToken = token,
                     RefreshToken = refreshToken,
                     TtsUrl = ttsUrl,
-                    CustomTtsTemplate = customTemplate
+                    CustomTtsTemplate = customTemplate,
+                    ForceRealTimeTTSUpdates = RealTimeTtsToggle.IsOn
                 };
 
                 File.WriteAllText(credentialsPath, JsonSerializer.Serialize(updatedBackup, new JsonSerializerOptions { WriteIndented = true }));
@@ -339,7 +377,8 @@ namespace DiapStash_Plugin
                             AccessToken = accessToken,
                             RefreshToken = refreshToken,
                             TtsUrl = existingTtsUrl,
-                            CustomTtsTemplate = existingTemplate
+                            CustomTtsTemplate = existingTemplate,
+                            ForceRealTimeTTSUpdates = RealTimeTtsToggle.IsOn
                         };
                         File.WriteAllText(credentialsPath, JsonSerializer.Serialize(credentialBackup, new JsonSerializerOptions { WriteIndented = true }));
                     }
@@ -433,7 +472,8 @@ namespace DiapStash_Plugin
                             AccessToken = newAccessToken,
                             RefreshToken = refreshToken,
                             TtsUrl = ttsUrl,
-                            CustomTtsTemplate = template
+                            CustomTtsTemplate = template,
+                            ForceRealTimeTTSUpdates = RealTimeTtsToggle.IsOn
                         };
                         File.WriteAllText(credentialsPath, JsonSerializer.Serialize(updatedBackup, new JsonSerializerOptions { WriteIndented = true }));
                     }

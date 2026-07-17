@@ -74,6 +74,11 @@ namespace DiapStash_Plugin
                 var json = JsonSerializer.Serialize(ComplexRuleCards);
                 string fallbackPath = Path.Combine(DiapStashClient.AppDataFolder, "rules_matrix.json");
                 File.WriteAllText(fallbackPath, json);
+
+                string backupsDir = Path.Combine(DiapStashClient.AppDataFolder, "backups");
+                if (!Directory.Exists(backupsDir)) Directory.CreateDirectory(backupsDir);
+                string backupPath = Path.Combine(backupsDir, $"rules_matrix_{DateTime.Now:yyyyMMdd_HHmmss}.json");
+                File.WriteAllText(backupPath, json);
             }
             catch { }
         }
@@ -583,7 +588,7 @@ namespace DiapStash_Plugin
                     }
                 }
             }
-            // FIXED: Protegemos el bucle de lectura contra desconexiones abruptas del socket o tubería rota en streaming
+            // FIXED: Protected the read loop against abrupt socket disconnections or broken pipes during streaming
             catch (WebSocketException wsex)
             {
                 LogReceived?.Invoke($"🔌 WebSocket channel dropped: {wsex.Message}");

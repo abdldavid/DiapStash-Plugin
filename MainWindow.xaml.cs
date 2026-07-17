@@ -26,6 +26,7 @@ namespace DiapStash_Plugin
             this.InitializeComponent();
 
             ExtendsContentIntoTitleBar = false;
+            SetTheme(ElementTheme.Default);
             NavView.ItemInvoked += NavView_ItemInvokedHandler;
 
             IntPtr hWnd = WinRT.Interop.WindowNative.GetWindowHandle(this);

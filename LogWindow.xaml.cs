@@ -6,9 +6,14 @@ namespace DiapStash_Plugin
 {
     public sealed partial class LogWindow : Window
     {
+        [System.Runtime.InteropServices.DllImport("dwmapi.dll")]
+        private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int attrValue, int attrSize);
+        private const int DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
+
         public LogWindow()
         {
             this.InitializeComponent();
+            ExtendsContentIntoTitleBar = false;
 
             IntPtr hWnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
             var windowId = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(hWnd);
@@ -17,6 +22,20 @@ namespace DiapStash_Plugin
             {
                 appWindow.SetIcon(System.IO.Path.Combine(AppContext.BaseDirectory, "Assets", "appicon.ico"));
             }
+
+            bool isDark = Application.Current.RequestedTheme == ApplicationTheme.Dark;
+            if (MainWindow.Instance?.Content is FrameworkElement fe && fe.RequestedTheme != ElementTheme.Default)
+            {
+                isDark = fe.RequestedTheme == ElementTheme.Dark;
+            }
+            int isDarkMode = isDark ? 1 : 0;
+            DwmSetWindowAttribute(hWnd, DWMWA_USE_IMMERSIVE_DARK_MODE, ref isDarkMode, sizeof(int));
+
+            if (this.Content is FrameworkElement localFe)
+            {
+                localFe.RequestedTheme = isDark ? ElementTheme.Dark : ElementTheme.Light;
+            }
+
             PopulateBacklog();
         }
 

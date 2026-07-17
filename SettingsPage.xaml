@@ -53,6 +53,8 @@
                     </StackPanel>
 
                     <TextBox x:Name="StashTokenBox" Header="Active Access Bearer Token (Auto-Generated Framework Context)" PlaceholderText="Awaiting secure OAuth2 local loopback workflow handshake tokens..." IsReadOnly="True" HorizontalAlignment="Stretch"/>
+                    
+                    <ToggleSwitch x:Name="RealTimeTtsToggle" Header="Real-Time Updates on JakeyTTS Trigger" OffContent="Disabled (Checks every 15m)" OnContent="Enabled (Max 1 update per minute)" Toggled="RealTimeTtsToggle_Toggled" Margin="0,10,0,0"/>
                 </StackPanel>
             </StackPanel>
         </StackPanel>

@@ -51,6 +51,7 @@ namespace DiapStash_Plugin
 
         private bool _previewMode = false;
         private DispatcherTimer _previewTimer = null;
+        private DispatcherTimer _realTimeTimer = null;
         private bool _isRefreshingProperties = false;
         private System.Collections.Generic.Dictionary<TreeViewNode, object> _nodeTags = new();
         private System.Collections.Generic.Dictionary<OverlayElement, FrameworkElement> _modelToUi = new();
@@ -74,21 +75,53 @@ namespace DiapStash_Plugin
             _isRefreshingProperties = true;
             try
             {
+                bool loadedSuccessfully = false;
                 if (File.Exists(_pagesPath))
                 {
-                    string json = File.ReadAllText(_pagesPath);
-                    _pages = JsonSerializer.Deserialize<System.Collections.Generic.List<OverlayPreset>>(json) ?? new();
+                    try
+                    {
+                        string json = File.ReadAllText(_pagesPath);
+                        _pages = JsonSerializer.Deserialize<System.Collections.Generic.List<OverlayPreset>>(json) ?? new();
+                        if (_pages.Count > 0) loadedSuccessfully = true;
+                    }
+                    catch (Exception ex)
+                    {
+                        // Backup corrupted file to avoid wiping user data
+                        string corruptPath = System.IO.Path.Combine(DiapStashClient.AppDataFolder, $"overlay_pages_corrupt_{DateTime.Now:yyyyMMdd_HHmmss}.json");
+                        File.Copy(_pagesPath, corruptPath, true);
+                        System.Diagnostics.Debug.WriteLine($"Failed to load overlay presets. Saved corrupt file to {corruptPath}. Error: {ex}");
+                    }
                 }
                 else if (File.Exists(_presetPath))
                 {
-                    string json = File.ReadAllText(_presetPath);
-                    var p = JsonSerializer.Deserialize<OverlayPreset>(json);
-                    if (p != null) { p.Name = "Default Layout"; _pages.Add(p); }
+                    try
+                    {
+                        string json = File.ReadAllText(_presetPath);
+                        var p = JsonSerializer.Deserialize<OverlayPreset>(json);
+                        if (p != null) { p.Name = "Default Layout"; _pages.Add(p); loadedSuccessfully = true; }
+                    }
+                    catch { }
                 }
 
                 if (_pages.Count == 0)
                 {
                     _pages.Add(CreateDefaultPreset("Page 1"));
+                }
+                else if (loadedSuccessfully && File.Exists(_pagesPath))
+                {
+                    try
+                    {
+                        string backupsDir = System.IO.Path.Combine(DiapStashClient.AppDataFolder, "backups");
+                        if (!Directory.Exists(backupsDir)) Directory.CreateDirectory(backupsDir);
+
+                        string backupPath = System.IO.Path.Combine(backupsDir, $"overlay_pages_{DateTime.Now:yyyyMMdd_HHmmss}.json");
+                        File.Copy(_pagesPath, backupPath, true);
+
+                        var di = new DirectoryInfo(backupsDir);
+                        var oldFiles = di.GetFiles("overlay_pages_*.json").OrderByDescending(f => f.CreationTime).Skip(20);
+                        foreach (var f in oldFiles) f.Delete();
+                    }
+                    catch { }
                 }
                 
                 RefreshPagesList();
@@ -170,7 +203,126 @@ namespace DiapStash_Plugin
 
         private void ResetBtn_Click(object sender, RoutedEventArgs e)
         {
+            SaveStateForUndo();
             SetToDefaultDesign();
+        }
+
+        private async void ExportBtn_Click(object sender, RoutedEventArgs e)
+        {
+            var window = MainWindow.Instance;
+            if (window == null) return;
+            var picker = new Windows.Storage.Pickers.FileSavePicker();
+            var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(window);
+            WinRT.Interop.InitializeWithWindow.Initialize(picker, hwnd);
+            picker.SuggestedStartLocation = Windows.Storage.Pickers.PickerLocationId.DocumentsLibrary;
+            picker.FileTypeChoices.Add("JSON File", new System.Collections.Generic.List<string>() { ".json" });
+            picker.SuggestedFileName = $"DiapStash_Overlay_{DateTime.Now:yyyyMMdd}.json";
+
+            var file = await picker.PickSaveFileAsync();
+            if (file != null)
+            {
+                try
+                {
+                    string json = JsonSerializer.Serialize(_pages, new JsonSerializerOptions { WriteIndented = true });
+                    await Windows.Storage.FileIO.WriteTextAsync(file, json);
+                }
+                catch { }
+            }
+        }
+
+        private async void ImportBtn_Click(object sender, RoutedEventArgs e)
+        {
+            var window = MainWindow.Instance;
+            if (window == null) return;
+            var picker = new Windows.Storage.Pickers.FileOpenPicker();
+            var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(window);
+            WinRT.Interop.InitializeWithWindow.Initialize(picker, hwnd);
+            picker.ViewMode = Windows.Storage.Pickers.PickerViewMode.List;
+            picker.SuggestedStartLocation = Windows.Storage.Pickers.PickerLocationId.DocumentsLibrary;
+            picker.FileTypeFilter.Add(".json");
+
+            var file = await picker.PickSingleFileAsync();
+            if (file != null)
+            {
+                try
+                {
+                    string json = await Windows.Storage.FileIO.ReadTextAsync(file);
+                    var imported = JsonSerializer.Deserialize<System.Collections.Generic.List<OverlayPreset>>(json);
+                    if (imported != null && imported.Count > 0)
+                    {
+                        SaveStateForUndo();
+                        _pages = imported;
+                        RefreshPagesList();
+                        _activePageIndex = 0;
+                        LoadActivePage();
+                        SavePages();
+                        _ = SyncDesignWithOverlayServerAsync();
+                    }
+                }
+                catch { }
+            }
+        }
+
+        private async void MergeDefaultsBtn_Click(object sender, RoutedEventArgs e)
+        {
+            if (_activePage == null) return;
+            SaveStateForUndo();
+            var defaultPreset = CreateDefaultPreset("temp");
+            
+            string getDs(OverlayElement element)
+            {
+                if (element is TextElement t) return t.DataSource ?? "";
+                if (element is BarElement b) return b.DataSource ?? "";
+                if (element is RingElement r) return r.DataSource ?? "";
+                if (element is ImageElement i) return i.DataSource ?? "";
+                return "";
+            }
+            
+            int addedCount = 0;
+            foreach (var defElement in defaultPreset.Elements)
+            {
+                bool exists = false;
+                foreach (var el in _activePage.Elements)
+                {
+                    if (el.ElementType == defElement.ElementType && getDs(el) == getDs(defElement))
+                    {
+                        exists = true;
+                        break;
+                    }
+                }
+                if (!exists)
+                {
+                    _activePage.Elements.Add(defElement);
+                    addedCount++;
+                }
+            }
+
+            if (addedCount > 0)
+            {
+                LoadActivePage();
+                SavePages();
+                _ = SyncDesignWithOverlayServerAsync();
+                
+                var dialog = new Microsoft.UI.Xaml.Controls.ContentDialog
+                {
+                    Title = "Merge Complete",
+                    Content = $"Added {addedCount} missing default widget(s) to this layout.",
+                    CloseButtonText = "OK",
+                    XamlRoot = this.XamlRoot
+                };
+                await dialog.ShowAsync();
+            }
+            else
+            {
+                var dialog = new Microsoft.UI.Xaml.Controls.ContentDialog
+                {
+                    Title = "Up to Date",
+                    Content = "Your layout already contains all the default widgets.",
+                    CloseButtonText = "OK",
+                    XamlRoot = this.XamlRoot
+                };
+                await dialog.ShowAsync();
+            }
         }
 
         private void SaveStateForUndo()
@@ -451,6 +603,7 @@ namespace DiapStash_Plugin
                         else if (te.DataSource == "Wetness") displayText = s.LiveWetPercentage + "%";
                         else if (te.DataSource == "Messiness") displayText = s.LiveMessPercentage + "%";
                         else if (te.DataSource == "LiveStatus") displayText = s.LiveStatusMessage;
+                        else if (te.DataSource == "ElapsedTime") displayText = te.ShowSeconds ? s.LiveElapsed : (s.LiveElapsed.Length >= 5 ? s.LiveElapsed.Substring(0, 5) : s.LiveElapsed);
                     }
 
                     var weight = te.FontWeight == "Bold" ? Microsoft.UI.Text.FontWeights.Bold :
@@ -851,11 +1004,13 @@ namespace DiapStash_Plugin
                 if (_selectedModel is TextElement te)
                 {
                     Properties_Text.Visibility = Visibility.Visible;
-                    TextDataSourceCombo.SelectedIndex = te.DataSource == "Custom" ? 0 : (te.DataSource == "ProductName" ? 1 : (te.DataSource == "Size" ? 2 : (te.DataSource == "Wetness" ? 3 : (te.DataSource == "Messiness" ? 4 : 5))));
+                    TextDataSourceCombo.SelectedIndex = te.DataSource == "Custom" ? 0 : (te.DataSource == "ProductName" ? 1 : (te.DataSource == "Size" ? 2 : (te.DataSource == "Wetness" ? 3 : (te.DataSource == "Messiness" ? 4 : (te.DataSource == "LiveStatus" ? 5 : 6)))));
                     TextCustomBox.Text = te.CustomText ?? "";
                     
                     // Hide custom input if not Custom
                     TextCustomBox.Visibility = te.DataSource == "Custom" ? Visibility.Visible : Visibility.Collapsed;
+                    TextShowSecondsToggle.IsOn = te.ShowSeconds;
+                    TextShowSecondsToggle.Visibility = te.DataSource == "ElapsedTime" ? Visibility.Visible : Visibility.Collapsed;
 
                     // Sync fonts dropdowns
                     TextFontFamilyCombo.SelectedIndex = te.FontFamily == "Outfit" ? 0 :
@@ -1001,6 +1156,7 @@ namespace DiapStash_Plugin
             if (_selectedModel is TextElement te) {
                 te.DataSource = (TextDataSourceCombo.SelectedItem as ComboBoxItem)?.Content.ToString();
                 te.CustomText = TextCustomBox.Text;
+                te.ShowSeconds = TextShowSecondsToggle.IsOn;
                 
                 te.FontFamily = (TextFontFamilyCombo.SelectedItem as ComboBoxItem)?.Content.ToString() ?? "Outfit";
                 te.FontWeight = (TextFontWeightCombo.SelectedItem as ComboBoxItem)?.Content.ToString() ?? "Bold";
@@ -1014,6 +1170,7 @@ namespace DiapStash_Plugin
 
                 // Update custom input visibility
                 TextCustomBox.Visibility = te.DataSource == "Custom" ? Visibility.Visible : Visibility.Collapsed;
+                TextShowSecondsToggle.Visibility = te.DataSource == "ElapsedTime" ? Visibility.Visible : Visibility.Collapsed;
             }
             else if (_selectedModel is BarElement be) {
                 be.DataSource = (BarDataSourceCombo.SelectedItem as ComboBoxItem)?.Content.ToString();
@@ -1431,6 +1588,12 @@ namespace DiapStash_Plugin
                 s.LiveWetPercentage = state.WetnessPercentage;
                 s.LiveMessPercentage = state.MessyPercentage;
                 s.LiveImageUrl = state.ImageUrl;
+                s.LiveStatusMessage = state.IsActiveSession ? "Active" : "Completed";
+                if (state.StartTime != DateTime.MinValue)
+                {
+                    var diff = state.IsActiveSession ? (DateTime.Now - state.StartTime.ToLocalTime()) : (state.EndTime.Value.ToLocalTime() - state.StartTime.ToLocalTime());
+                    s.LiveElapsed = $"{(int)diff.TotalHours:D2}:{diff.Minutes:D2}:{diff.Seconds:D2}";
+                }
             }
         }
 
@@ -1678,16 +1841,33 @@ namespace DiapStash_Plugin
             if (_previewTimer == null)
             {
                 _previewTimer = new DispatcherTimer();
-                _previewTimer.Interval = TimeSpan.FromSeconds(6);
+                _previewTimer.Interval = TimeSpan.FromMilliseconds(OverlayServer.Instance.StayOnScreenDurationMs > 0 ? OverlayServer.Instance.StayOnScreenDurationMs : 6000);
                 _previewTimer.Tick += (s, e) =>
                 {
                     _previewTimer.Stop();
+                    _realTimeTimer?.Stop();
                     _previewMode = false;
                     UpdateLocalPreview();
                 };
             }
+            if (_realTimeTimer == null)
+            {
+                _realTimeTimer = new DispatcherTimer();
+                _realTimeTimer.Interval = TimeSpan.FromSeconds(1);
+                _realTimeTimer.Tick += async (s, e) =>
+                {
+                    if (_previewMode)
+                    {
+                        await SyncDesignWithOverlayServerAsync();
+                        UpdateLiveValuesInPreview();
+                    }
+                };
+            }
+            _previewTimer.Interval = TimeSpan.FromMilliseconds(OverlayServer.Instance.StayOnScreenDurationMs > 0 ? OverlayServer.Instance.StayOnScreenDurationMs : 6000);
             _previewTimer.Stop();
             _previewTimer.Start();
+            _realTimeTimer.Stop();
+            _realTimeTimer.Start();
         }
 
         private void PlayLocalTransition()
@@ -1778,6 +1958,74 @@ namespace DiapStash_Plugin
             PlayLocalTransition();
             StartPreviewTimer();
         }
+
+        private void UpdateLiveValuesInPreview()
+        {
+            var s = OverlayServer.Instance;
+            foreach (var kvp in _modelToUi)
+            {
+                var el = kvp.Key;
+                var ui = kvp.Value;
+                
+                if (el is TextElement te && ui is TextBlock tb)
+                {
+                    if (te.DataSource == "ProductName") tb.Text = s.LiveProductName;
+                    else if (te.DataSource == "Size") tb.Text = s.LiveSize;
+                    else if (te.DataSource == "Wetness") tb.Text = s.LiveWetPercentage + "%";
+                    else if (te.DataSource == "Messiness") tb.Text = s.LiveMessPercentage + "%";
+                    else if (te.DataSource == "LiveStatus") tb.Text = s.LiveStatusMessage;
+                    else if (te.DataSource == "ElapsedTime") tb.Text = te.ShowSeconds ? s.LiveElapsed : (s.LiveElapsed.Length >= 5 ? s.LiveElapsed.Substring(0, 5) : s.LiveElapsed);
+                }
+                else if (el is BarElement be && ui is Grid bgGrid && bgGrid.Children.Count >= 2 && bgGrid.Children[1] is Border fg)
+                {
+                    double percentage = 0.5;
+                    if (be.DataSource == "Wetness") percentage = s.LiveWetPercentage / 100.0;
+                    else if (be.DataSource == "Messiness") percentage = s.LiveMessPercentage / 100.0;
+                    
+                    if (be.Orientation == "Horizontal") fg.Width = el.Width * percentage;
+                    else fg.Height = el.Height * percentage;
+                }
+                else if (el is RingElement re && ui is Grid rgGrid && rgGrid.Children.Count >= 2)
+                {
+                    double percentage = 0.5;
+                    if (re.DataSource == "Wetness") percentage = s.LiveWetPercentage / 100.0;
+                    else if (re.DataSource == "Messiness") percentage = s.LiveMessPercentage / 100.0;
+                    
+                    double t = re.StrokeThickness;
+                    double r = Math.Min(el.Width, el.Height) / 2.0 - t / 2.0;
+                    if (r < 1) r = 1;
+
+                    if (re.IsFullCircle || re.ArcAngle >= 359.9)
+                    {
+                        if (rgGrid.Children[1] is Microsoft.UI.Xaml.Shapes.Ellipse fgEllipse)
+                        {
+                            double circumference = 2 * Math.PI * r;
+                            fgEllipse.StrokeDashOffset = (circumference / t) * (1 - percentage);
+                        }
+                    }
+                    else
+                    {
+                        if (rgGrid.Children[1] is Microsoft.UI.Xaml.Shapes.Path fgPath)
+                        {
+                            double angle = re.ArcAngle * percentage;
+                            double cx = el.Width / 2; double cy = el.Height / 2;
+                            double startAngleRad = (re.ArcRotation - 90) * Math.PI / 180.0;
+                            double endAngleRad = (re.ArcRotation - 90 + angle) * Math.PI / 180.0;
+                            
+                            var ptStart = new Windows.Foundation.Point(cx + r * Math.Cos(startAngleRad), cy + r * Math.Sin(startAngleRad));
+                            var ptEnd = new Windows.Foundation.Point(cx + r * Math.Cos(endAngleRad), cy + r * Math.Sin(endAngleRad));
+                            
+                            var geo = new Microsoft.UI.Xaml.Media.PathGeometry();
+                            var fig = new Microsoft.UI.Xaml.Media.PathFigure { StartPoint = ptStart, IsClosed = false };
+                            fig.Segments.Add(new Microsoft.UI.Xaml.Media.ArcSegment { Point = ptEnd, Size = new Windows.Foundation.Size(r, r), IsLargeArc = angle > 180, SweepDirection = Microsoft.UI.Xaml.Media.SweepDirection.Clockwise });
+                            geo.Figures.Add(fig);
+                            fgPath.Data = geo;
+                        }
+                    }
+                }
+            }
+        }
+        
         private async void LaunchObsBtn_Click(object sender, RoutedEventArgs e) { SavePages(); await SyncDesignWithOverlayServerAsync(); OverlayServer.Instance.ForcePreviewTrigger = true; }
         
         private string ColorToHex(Windows.UI.Color c) => $"#{c.A:X2}{c.R:X2}{c.G:X2}{c.B:X2}";

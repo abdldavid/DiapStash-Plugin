@@ -126,7 +126,11 @@
                             <StackPanel Spacing="10">
                                 <TextBlock Text="Design the primary core message framework read out loud by JakeyTTS. You can type JakeyTTS conditional blocks natively here (e.g. [if:diapstash_leak==YES] Oh no! [/if])." FontSize="12" Opacity="0.7" TextWrapping="Wrap"/>
                                 <TextBox x:Name="CustomTtsTemplateBox" Header="Core DiapStash Notification Template" MinHeight="100" TextWrapping="Wrap" AcceptsReturn="True"/>
-                                <Button x:Name="SaveTemplateBtn" Content="Save Core Response Framework" Click="SaveTtsTemplate_Click" Style="{StaticResource AccentButtonStyle}" Width="240"/>
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <Button x:Name="SaveTemplateBtn" Content="Save Core Response Framework" Click="SaveTtsTemplate_Click" Style="{StaticResource AccentButtonStyle}" Width="240"/>
+                                    <Button Content="Import Template Backup" Click="ImportTtsTemplateBackup_Click" ToolTipService.ToolTip="Restore from backup history"/>
+                                    <Button Content="Restore Default" Click="RestoreDefaultTemplate_Click" ToolTipService.ToolTip="Restore standard template"/>
+                                </StackPanel>
                             </StackPanel>
                         </StackPanel>
                     </Border>
@@ -167,6 +171,9 @@
                                                         <TextBlock Text="{Binding CardName}" FontSize="13" FontWeight="Bold" Foreground="MediumOrchid"/>
                                                         <TextBlock Text="}" FontSize="13" FontWeight="Bold" Foreground="MediumOrchid"/>
                                                     </StackPanel>
+                                                    <Button Click="CopyTag_Click" Tag="{Binding CardName}" Style="{StaticResource DefaultButtonStyle}" Padding="6,4" Margin="4,0,0,0" ToolTipService.ToolTip="Copy token to clipboard" Background="Transparent" BorderThickness="0">
+                                                        <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE8C8;" FontSize="12" />
+                                                    </Button>
                                                 </StackPanel>
 
                                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
@@ -273,12 +280,16 @@
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-                            <Button Grid.Column="0" Click="SaveRules_Click" Style="{StaticResource AccentButtonStyle}" Width="240">
-                                                        <StackPanel Orientation="Horizontal" Spacing="6">
-                                                            <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE74E;" FontSize="14" />
-                                                            <TextBlock Text="Save Rules Matrix Hierarchy" VerticalAlignment="Center" />
-                                                        </StackPanel>
-                            </Button>
+                            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10">
+                                <Button Click="SaveRules_Click" Style="{StaticResource AccentButtonStyle}" Width="240">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE74E;" FontSize="14" />
+                                        <TextBlock Text="Save Rules Matrix Hierarchy" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
+                                <Button Content="Import Rules Backup" Click="ImportRulesBackup_Click" ToolTipService.ToolTip="Restore from backup history"/>
+                                <Button Content="Restore Defaults" Click="RestoreDefaultRules_Click" ToolTipService.ToolTip="Load example rule blocks"/>
+                            </StackPanel>
                             <Button Grid.Column="2" Click="InspectRawChange_Click" Style="{StaticResource DefaultButtonStyle}">
                                                         <StackPanel Orientation="Horizontal" Spacing="6">
                                                             <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE1A3;" FontSize="14" />

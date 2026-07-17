@@ -58,6 +58,7 @@ namespace DiapStash_Plugin
         public bool TextWrap { get; set; } = false;
         public string ColorHex { get; set; } = "#1E1E1E";
         public string TextAlignment { get; set; } = "Left"; // Left, Center, Right
+        public bool ShowSeconds { get; set; } = true;
     }
 
     public class BarElement : OverlayElement

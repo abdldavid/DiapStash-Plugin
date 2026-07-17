@@ -28,7 +28,7 @@ namespace DiapStash_Plugin
         {
             try
             {
-                string currentVersion = "2.2.0.0";
+                string currentVersion = "2.3.0.0";
                 string versionFile = Path.Combine(DiapStashClient.AppDataFolder, "last_version.txt");
                 string lastSeen = File.Exists(versionFile) ? File.ReadAllText(versionFile).Trim() : "";
                 
@@ -48,31 +48,54 @@ namespace DiapStash_Plugin
 
         private async Task ShowChangelogDialogAsync()
         {
+            var stack = new StackPanel { Spacing = 15, Margin = new Thickness(0, 10, 0, 0) };
+            
+            var currentVersionText = new TextBlock
+            {
+                Text = "🚀 Major Updates:\n" +
+                       "• Optimization: Implemented a local product catalog database and local image caching to heavily reduce external API requests and save data quota.\n" +
+                       "• Optimization: Catalog updates are now strictly limited to once every 24 hours, and diaper status checks poll every 15 minutes to preserve network resources.\n" +
+                       "• Settings: Added a 'Real-Time Updates on JakeyTTS Trigger' toggle to optionally bypass the 15-minute polling limit down to 1-minute for instant TTS feedback.\n" +
+                       "• Optimization: Elapsed time durations are now intelligently calculated locally to reduce redundant server polls.\n" +
+                       "• Action Blocks: Added default templates and a 'Restore Defaults' button for quick rule building.\n" +
+                       "• Action Blocks: Added a 'Copy Tag' button to advance action blocks to easily port them into JakeyTTS.\n" +
+                       "• Canvas Editor: Added a 'Show Seconds' toggle option for the Elapsed Time widget.\n\n" +
+                       "🛠 Bug Fixes:\n" +
+                       "• Fixed a visual flickering issue on the live canvas preview when streaming real-time elapsed durations.\n" +
+                       "• Fixed diaper product images failing to load on the Change Tracker interface when served from the local hard drive cache.\n" +
+                       "• Fixed main window and telemetry console title bars not matching your system's dark/light mode preference upon application startup.\n" +
+                       "• Translated all source code comments and logic documentation to English.",
+                TextWrapping = TextWrapping.Wrap
+            };
+            stack.Children.Add(currentVersionText);
+
+            var pastExpander = new Expander { Header = "View Past Changes (v2.2)", HorizontalAlignment = HorizontalAlignment.Stretch };
+            var pastText = new TextBlock
+            {
+                Text = "🚀 Major Updates:\n" +
+                       "• Overlay Editor: Added Progress Rings & Arches! Create circular gauges bound to live data metrics.\n" +
+                       "• New Visual Editor: Added alignment options, image custom URL support, precise textboxes for sliders, and better widget properties.\n" +
+                       "• Performance: Persistent background disk caching saves quota usage across app restarts.\n" +
+                       "• OBS Overlay: Added transition time configurations, image placeholder fixes, and fallback icons.\n" +
+                       "• Integration: Rebuilt internal engine orchestration with complete memory footprint reduction.\n\n" +
+                       "🛠 Bug Fixes:\n" +
+                       "• Resolved the WinRT 0x80073D54 app crash loop when authenticating.\n" +
+                       "• Fixed issues with SVG images not loading properly.\n" +
+                       "• Stabilized the HTTP overlay streaming server connectivity.",
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 10, 0, 10)
+            };
+            pastExpander.Content = pastText;
+            stack.Children.Add(pastExpander);
+
             var dialog = new ContentDialog
             {
-                Title = "DiapStash Plugin - What's New v2.2",
-                Content = new ScrollViewer
-                {
-                    Content = new TextBlock
-                    {
-                        Text = "🚀 Major Updates:\n" +
-                               "• Overlay Editor: Added Progress Rings & Arches! Create circular gauges bound to live data metrics.\n" +
-                               "• New Visual Editor: Added alignment options, image custom URL support, precise textboxes for sliders, and better widget properties.\n" +
-                               "• Performance: Persistent background disk caching saves quota usage across app restarts.\n" +
-                               "• OBS Overlay: Added transition time configurations, image placeholder fixes, and fallback icons.\n" +
-                               "• Integration: Rebuilt internal engine orchestration with complete memory footprint reduction.\n\n" +
-                               "🛠 Bug Fixes:\n" +
-                               "• Resolved the WinRT 0x80073D54 app crash loop when authenticating.\n" +
-                               "• Fixed issues with SVG images not loading properly.\n" +
-                               "• Stabilized the HTTP overlay streaming server connectivity.",
-                        TextWrapping = TextWrapping.Wrap,
-                        Margin = new Thickness(0,10,0,0)
-                    },
-                    MaxHeight = 400
-                },
-                CloseButtonText = "Awesome!",
-                XamlRoot = this.XamlRoot
+                Title = "DiapStash Plugin - What's New v2.3",
+                Content = new ScrollViewer { Content = stack },
+                CloseButtonText = "Awesome!"
             };
+            
+            dialog.XamlRoot = this.XamlRoot;
             await dialog.ShowAsync();
         }
 

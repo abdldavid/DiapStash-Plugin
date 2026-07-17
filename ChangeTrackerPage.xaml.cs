@@ -148,23 +148,23 @@ namespace DiapStash_Plugin
                 }
             }
 
-            if (!string.IsNullOrEmpty(statePayload.ImageUrl) && statePayload.ImageUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+            if (!string.IsNullOrEmpty(statePayload.ImageUrl))
             {
-                bool isSvg = false;
+                bool isSvg = statePayload.ImageUrl.EndsWith(".svg", StringComparison.OrdinalIgnoreCase);
                 try
                 {
-                    var uri = new Uri(statePayload.ImageUrl);
-                    isSvg = uri.AbsolutePath.EndsWith(".svg", StringComparison.OrdinalIgnoreCase);
+                    if (isSvg)
+                    {
+                        CardProductImage.Source = new Microsoft.UI.Xaml.Media.Imaging.SvgImageSource(new Uri(statePayload.ImageUrl));
+                    }
+                    else
+                    {
+                        CardProductImage.Source = new Microsoft.UI.Xaml.Media.Imaging.BitmapImage(new Uri(statePayload.ImageUrl));
+                    }
                 }
-                catch { }
-
-                if (isSvg)
+                catch
                 {
-                    CardProductImage.Source = new Microsoft.UI.Xaml.Media.Imaging.SvgImageSource(new Uri(statePayload.ImageUrl));
-                }
-                else
-                {
-                    CardProductImage.Source = new Microsoft.UI.Xaml.Media.Imaging.BitmapImage(new Uri(statePayload.ImageUrl));
+                    CardProductImage.Source = new Microsoft.UI.Xaml.Media.Imaging.BitmapImage(new Uri("https://diapstash.com/diapstash/assets/icons/Diaper.png"));
                 }
             }
             else
@@ -292,6 +292,11 @@ namespace DiapStash_Plugin
                 string templatePath = Path.Combine(DiapStashClient.AppDataFolder, "saved_template.txt");
                 File.WriteAllText(templatePath, customText);
 
+                string backupsDir = Path.Combine(DiapStashClient.AppDataFolder, "backups");
+                if (!Directory.Exists(backupsDir)) Directory.CreateDirectory(backupsDir);
+                string backupPath = Path.Combine(backupsDir, $"saved_template_{DateTime.Now:yyyyMMdd_HHmmss}.txt");
+                File.WriteAllText(backupPath, customText);
+
                 string credentialsPath = Path.Combine(DiapStashClient.AppDataFolder, "credentials.json");
                 if (File.Exists(credentialsPath))
                 {
@@ -328,6 +333,97 @@ namespace DiapStash_Plugin
             RawChangeDiagnosticBox.Text = "⌛ Requesting raw timeline frame payload stream...";
             string rawJson = await DiapStashClient.Instance.GetRawEndpointDataAsync("api/v1/history/changes");
             RawChangeDiagnosticBox.Text = rawJson;
+        }
+
+        private async void ImportTtsTemplateBackup_Click(object sender, RoutedEventArgs e)
+        {
+            var window = MainWindow.Instance;
+            if (window == null) return;
+            var picker = new Windows.Storage.Pickers.FileOpenPicker();
+            var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(window);
+            WinRT.Interop.InitializeWithWindow.Initialize(picker, hwnd);
+            picker.ViewMode = Windows.Storage.Pickers.PickerViewMode.List;
+            picker.SuggestedStartLocation = Windows.Storage.Pickers.PickerLocationId.DocumentsLibrary;
+            picker.FileTypeFilter.Add(".txt");
+
+            var file = await picker.PickSingleFileAsync();
+            if (file != null)
+            {
+                try
+                {
+                    string content = await Windows.Storage.FileIO.ReadTextAsync(file);
+                    CustomTtsTemplateBox.Text = content;
+                    SaveTtsTemplate_Click(null, null);
+                    MainWindow.Instance?.Log("💾 Imported and saved TTS Template backup.");
+                }
+                catch { MainWindow.Instance?.Log("❌ Failed to import Template Backup."); }
+            }
+        }
+
+        private async void ImportRulesBackup_Click(object sender, RoutedEventArgs e)
+        {
+            var window = MainWindow.Instance;
+            if (window == null) return;
+            var picker = new Windows.Storage.Pickers.FileOpenPicker();
+            var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(window);
+            WinRT.Interop.InitializeWithWindow.Initialize(picker, hwnd);
+            picker.ViewMode = Windows.Storage.Pickers.PickerViewMode.List;
+            picker.SuggestedStartLocation = Windows.Storage.Pickers.PickerLocationId.DocumentsLibrary;
+            picker.FileTypeFilter.Add(".json");
+
+            var file = await picker.PickSingleFileAsync();
+            if (file != null)
+            {
+                try
+                {
+                    string json = await Windows.Storage.FileIO.ReadTextAsync(file);
+                    string fallbackPath = Path.Combine(DiapStashClient.AppDataFolder, "rules_matrix.json");
+                    File.WriteAllText(fallbackPath, json);
+                    
+                    JakeyTtsClient.Instance.LoadRulesFromSettings();
+                    RulesListView.ItemsSource = JakeyTtsClient.Instance.ComplexRuleCards;
+                    MainWindow.Instance?.Log("💾 Imported and loaded Rules Backup.");
+                }
+                catch { MainWindow.Instance?.Log("❌ Failed to import Rules Backup."); }
+            }
+        }
+
+        private void RestoreDefaultTemplate_Click(object sender, RoutedEventArgs e)
+        {
+            CustomTtsTemplateBox.Text = "Currently tracking: [diapstash_product_name] (Size [diapstash_size]). [if:diapstash_is_active==YES] The session has been active for [diapstash_elapsed].[if:diapstash_leak==YES] Warning, a leak has been detected![/if][/if][if:diapstash_is_active==NO] The session was completed. It lasted for [diapstash_elapsed].[/if]";
+            SaveTtsTemplate_Click(null, null);
+            MainWindow.Instance?.Log("♻ Restored default core response template.");
+        }
+
+        private TtsComplexRuleCard CreateDefaultRule(string name, string logical, string variable, string val, string message)
+        {
+            var card = new TtsComplexRuleCard { CardName = name };
+            card.Clauses.Clear();
+            card.Clauses.Add(new TtsClause { LogicalOperator = logical, TargetVariable = variable, TargetValue = val, OutputMessage = message, ParentCard = card });
+            return card;
+        }
+
+        private void RestoreDefaultRules_Click(object sender, RoutedEventArgs e)
+        {
+            JakeyTtsClient.Instance.ComplexRuleCards.Clear();
+            JakeyTtsClient.Instance.ComplexRuleCards.Add(CreateDefaultRule("Active_Session_Greeting", "IF", "Status", "Active", "A new diaper session has started. Tracked item: [diapstash_product_name]."));
+            JakeyTtsClient.Instance.ComplexRuleCards.Add(CreateDefaultRule("Leak_Detected_Warning", "IF", "Leak", "YES", "Alert! A leak has been detected in the current diaper."));
+            JakeyTtsClient.Instance.ComplexRuleCards.Add(CreateDefaultRule("Session_Ended_Summary", "IF", "Status", "Completed", "The diaper session has ended. Total duration was [diapstash_elapsed]."));
+
+            RulesListView.ItemsSource = JakeyTtsClient.Instance.ComplexRuleCards;
+            JakeyTtsClient.Instance.SaveRulesToSettings();
+            MainWindow.Instance?.Log("♻ Restored example default rule blocks.");
+        }
+
+        private void CopyTag_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.Tag is string ruleName)
+            {
+                var dataPackage = new Windows.ApplicationModel.DataTransfer.DataPackage();
+                dataPackage.SetText($"{{diapstash_rule_{ruleName}}}");
+                Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(dataPackage);
+                MainWindow.Instance?.Log($"📋 Copied token to clipboard: {{diapstash_rule_{ruleName}}}");
+            }
         }
     }
 }
