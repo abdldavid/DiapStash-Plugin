@@ -55,8 +55,15 @@ namespace DiapStash_Plugin
                 Text = "🛠 Bug Fixes (v2.3.1):\n" +
                        "• Fixed an OBS proxy server issue where custom and local overlay images with spaces would not render.\n" +
                        "• Custom images selected for the canvas preview are now securely copied and granted permissions to bypass WinRT file access restrictions.\n" +
-                       "• Corrected the syntax for TTS default template variables (using {} instead of []) and removed unsupported [if:] tags from the core base response template.\n\n" +
-                       "🚀 Major Updates (v2.3):\n" +
+                       "• Corrected the syntax for TTS default template variables (using {} instead of []) and removed unsupported [if:] tags from the core base response template.",
+                TextWrapping = TextWrapping.Wrap
+            };
+            stack.Children.Add(currentVersionText);
+
+            var pastExpander = new Expander { Header = "View Past Changes (v2.3 & v2.2)", HorizontalAlignment = HorizontalAlignment.Stretch };
+            var pastText = new TextBlock
+            {
+                Text = "🚀 Major Updates (v2.3):\n" +
                        "• Optimization: Implemented a local product catalog database and local image caching to heavily reduce external API requests and save data quota.\n" +
                        "• Optimization: Catalog updates are now strictly limited to once every 24 hours, and diaper status checks poll every 15 minutes to preserve network resources.\n" +
                        "• Settings: Added a 'Real-Time Updates on JakeyTTS Trigger' toggle to optionally bypass the 15-minute polling limit down to 1-minute for instant TTS feedback.\n" +
@@ -64,21 +71,14 @@ namespace DiapStash_Plugin
                        "• Action Blocks: Added default templates and a 'Restore Defaults' button for quick rule building.\n" +
                        "• Action Blocks: Added a 'Copy Tag' button to advance action blocks to easily port them into JakeyTTS.\n" +
                        "• Canvas Editor: Added a 'Show Seconds' toggle option for the Elapsed Time widget.\n" +
-                       "• Bug Fix: Fixed visual flickering on the live canvas preview and fixed telemetry console title bar theme mismatch.",
-                TextWrapping = TextWrapping.Wrap
-            };
-            stack.Children.Add(currentVersionText);
-
-            var pastExpander = new Expander { Header = "View Past Changes (v2.2)", HorizontalAlignment = HorizontalAlignment.Stretch };
-            var pastText = new TextBlock
-            {
-                Text = "🚀 Major Updates:\n" +
+                       "• Bug Fix: Fixed visual flickering on the live canvas preview and fixed telemetry console title bar theme mismatch.\n\n" +
+                       "🚀 Major Updates (v2.2):\n" +
                        "• Overlay Editor: Added Progress Rings & Arches! Create circular gauges bound to live data metrics.\n" +
                        "• New Visual Editor: Added alignment options, image custom URL support, precise textboxes for sliders, and better widget properties.\n" +
                        "• Performance: Persistent background disk caching saves quota usage across app restarts.\n" +
                        "• OBS Overlay: Added transition time configurations, image placeholder fixes, and fallback icons.\n" +
                        "• Integration: Rebuilt internal engine orchestration with complete memory footprint reduction.\n\n" +
-                       "🛠 Bug Fixes:\n" +
+                       "🛠 Bug Fixes (v2.2):\n" +
                        "• Resolved the WinRT 0x80073D54 app crash loop when authenticating.\n" +
                        "• Fixed issues with SVG images not loading properly.\n" +
                        "• Stabilized the HTTP overlay streaming server connectivity.",
