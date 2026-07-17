@@ -60,8 +60,8 @@ namespace DiapStash_Plugin
             };
             stack.Children.Add(currentVersionText);
 
-            var pastExpander = new Expander { Header = "View Past Changes (v2.3 & v2.2)", HorizontalAlignment = HorizontalAlignment.Stretch };
-            var pastText = new TextBlock
+            var pastExpander23 = new Expander { Header = "View Past Changes (v2.3)", HorizontalAlignment = HorizontalAlignment.Stretch };
+            var pastText23 = new TextBlock
             {
                 Text = "🚀 Major Updates (v2.3):\n" +
                        "• Optimization: Implemented a local product catalog database and local image caching to heavily reduce external API requests and save data quota.\n" +
@@ -71,8 +71,17 @@ namespace DiapStash_Plugin
                        "• Action Blocks: Added default templates and a 'Restore Defaults' button for quick rule building.\n" +
                        "• Action Blocks: Added a 'Copy Tag' button to advance action blocks to easily port them into JakeyTTS.\n" +
                        "• Canvas Editor: Added a 'Show Seconds' toggle option for the Elapsed Time widget.\n" +
-                       "• Bug Fix: Fixed visual flickering on the live canvas preview and fixed telemetry console title bar theme mismatch.\n\n" +
-                       "🚀 Major Updates (v2.2):\n" +
+                       "• Bug Fix: Fixed visual flickering on the live canvas preview and fixed telemetry console title bar theme mismatch.",
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 10, 0, 10)
+            };
+            pastExpander23.Content = pastText23;
+            stack.Children.Add(pastExpander23);
+
+            var pastExpander22 = new Expander { Header = "View Past Changes (v2.2)", HorizontalAlignment = HorizontalAlignment.Stretch };
+            var pastText22 = new TextBlock
+            {
+                Text = "🚀 Major Updates (v2.2):\n" +
                        "• Overlay Editor: Added Progress Rings & Arches! Create circular gauges bound to live data metrics.\n" +
                        "• New Visual Editor: Added alignment options, image custom URL support, precise textboxes for sliders, and better widget properties.\n" +
                        "• Performance: Persistent background disk caching saves quota usage across app restarts.\n" +
@@ -85,8 +94,8 @@ namespace DiapStash_Plugin
                 TextWrapping = TextWrapping.Wrap,
                 Margin = new Thickness(0, 10, 0, 10)
             };
-            pastExpander.Content = pastText;
-            stack.Children.Add(pastExpander);
+            pastExpander22.Content = pastText22;
+            stack.Children.Add(pastExpander22);
 
             var dialog = new ContentDialog
             {
